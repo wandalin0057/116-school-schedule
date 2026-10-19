@@ -44,13 +44,13 @@ services:
       - key: INITIAL_ADMIN_PASSWORD
         sync: false
 
-  # 每日臺灣時間 08:00（UTC 00:00）執行，不依賴網站是否有人開啟
+  # 每日臺灣時間 09:05（UTC 01:05）執行，不依賴網站是否有人開啟
   - type: cron
     name: school-zone-daily-reminders
     runtime: docker
     plan: starter
     region: singapore
-    schedule: "0 0 * * *"
+    schedule: "5 1 * * *"
     dockerCommand: npm run cron:daily-reminders
     envVars:
       - fromGroup: school-zone-shared

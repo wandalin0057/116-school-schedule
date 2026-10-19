@@ -1,6 +1,6 @@
 /**
  * 每日工作提醒排程（獨立執行，不依賴網站是否有人開啟）。
- * GitHub Actions／Cron：每天 UTC 00:00（臺灣時間 08:00）
+ * GitHub Actions／Cron：每天 UTC 01:05（臺灣時間 09:05，約 9:05～9:30 寄出）
  *
  *   npm run cron:daily-reminders
  *   npm run cron:daily-reminders -- --force   # 非工作天也執行

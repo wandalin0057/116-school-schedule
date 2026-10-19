@@ -82,7 +82,7 @@ export function ReminderPreferenceForm({
       }}
     >
       {toggle("emailEnabled", "接收 Email 通知", "關閉後不會收到任何系統提醒信")}
-      {toggle("dailyDigestEnabled", "接收每日摘要", "每個工作天上午 8:00 寄送今日到期、即將到期與逾期工作")}
+      {toggle("dailyDigestEnabled", "接收每日摘要", "每個工作天上午 9:00～9:30 寄送今日到期、即將到期與逾期工作")}
       {isAdmin &&
         toggle(
           "managerDigestEnabled",

@@ -48,7 +48,7 @@ export default async function NotificationsPage({ searchParams }: { searchParams
     <>
       <PageHeader
         title="提醒紀錄"
-        description="每日臺灣時間上午 8:00 由背景排程寄送工作提醒。同一使用者同一日僅寄送一次。"
+        description="每日臺灣時間上午 9:00～9:30 由背景排程寄送工作提醒。同一使用者同一日僅寄送一次。"
         actions={
           admin ? (
             <div className="flex flex-wrap gap-2">
