@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { logoutAction } from "@/app/actions/auth";
 import { cn } from "@/lib/utils";
+import { InstallAppButton } from "./install-app-button";
 
 const NAV = [
   { href: "/", label: "儀表板", icon: LayoutDashboard },
@@ -67,6 +68,7 @@ function UserBox({ name, role }: { name: string; role: string }) {
         <p className="font-medium text-white">{name}</p>
         <p className="text-xs text-[hsl(var(--sidebar-foreground))]/70">{role === "ADMIN" ? "管理員" : "一般使用者"}</p>
       </div>
+      <InstallAppButton />
       <form action={logoutAction}>
         <button className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-[hsl(var(--sidebar-foreground))]/80 hover:bg-white/10 hover:text-white">
           <LogOut className="h-4 w-4" />
