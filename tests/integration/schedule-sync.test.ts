@@ -162,7 +162,9 @@ describe.skipIf(!hasTestDb)("案件期程同步（資料庫）", () => {
     for (const t of tasks) expect(t.assignedUserId).toBe(t.taskType.endsWith("_DRAFT") ? pm.id : eng.id);
     // 舊資料：創稿指派給同事 → 調整為專案經理
     await prisma.task.updateMany({ where: { caseId: schoolCase.id, taskType: "PRE_REPORT_DRAFT" }, data: { assignedUserId: eng.id } });
-    expect(await assignDraftTasksToPm()).toBe(1);
+    await prisma.task.updateMany({ where: { caseId: schoolCase.id, taskType: "REVIEW_DRAWING_DRAFT" }, data: { assignedUserId: eng.id, status: "COMPLETED" } });
+    expect(await assignDraftTasksToPm()).toBe(2);
+    expect((await prisma.task.findFirstOrThrow({ where: { caseId: schoolCase.id, taskType: "REVIEW_DRAWING_DRAFT" } })).assignedUserId).toBe(pm.id);
     expect((await prisma.task.findFirstOrThrow({ where: { caseId: schoolCase.id, taskType: "PRE_REPORT_DRAFT" } })).assignedUserId).toBe(pm.id);
   });
 

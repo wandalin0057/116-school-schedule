@@ -190,14 +190,13 @@ export async function projectManagerId(db: Prisma.TransactionClient | typeof pri
   return pm?.id ?? null;
 }
 
-/** 將尚未完成、且目前不是指派給管理員的創稿工作改由專案經理負責（可重複執行） */
+/** 將目前不是指派給管理員的創稿工作（含已完成）改由專案經理負責（可重複執行） */
 export async function assignDraftTasksToPm(db: Prisma.TransactionClient | typeof prisma = prisma): Promise<number> {
   const pm = await projectManagerId(db);
   if (!pm) return 0;
   const r = await db.task.updateMany({
     where: {
       taskType: { in: ADMIN_ONLY_TASKS },
-      status: { notIn: ["COMPLETED", "CANCELLED"] },
       OR: [{ assignedUserId: null }, { assignedUser: { role: { not: "ADMIN" } } }],
     },
     data: { assignedUserId: pm },
