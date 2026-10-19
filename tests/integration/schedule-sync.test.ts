@@ -105,7 +105,7 @@ describe.skipIf(!hasTestDb)("案件期程同步（資料庫）", () => {
     expect(chen).toMatchObject({ name: "陳工程師", role: "USER", isActive: true });
     expect(schoolCase.responsibleUserId).toBe(chen.id);
     // 工作指派給負責人（提醒信寄給他）
-    expect(await prisma.task.count({ where: { caseId: schoolCase.id, assignedUserId: chen.id } })).toBe(7);
+    expect(await prisma.task.count({ where: { caseId: schoolCase.id, assignedUserId: chen.id } })).toBe(5) // 創稿 2 項由專案經理負責;
     // 自動建立的帳號不能直接登入
     expect((await authenticate("chen@example.com", "")).ok).toBe(false);
     // 第二所學校用同一個 Email：不重複建立帳號
@@ -115,7 +115,7 @@ describe.skipIf(!hasTestDb)("案件期程同步（資料庫）", () => {
     // 改負責人：工作轉給新負責人
     await updateCase(admin, schoolCase.id, caseInput({ responsibleName: "王工程師", responsibleEmail: "wang@example.com" }));
     const wang = await prisma.user.findUniqueOrThrow({ where: { email: "wang@example.com" } });
-    expect(await prisma.task.count({ where: { caseId: schoolCase.id, assignedUserId: wang.id } })).toBe(7);
+    expect(await prisma.task.count({ where: { caseId: schoolCase.id, assignedUserId: wang.id } })).toBe(5);
   });
 
   it("標記完成與變更狀態僅限管理員；一般使用者（含負責人）只能檢視進度", async () => {
@@ -151,6 +151,19 @@ describe.skipIf(!hasTestDb)("案件期程同步（資料庫）", () => {
     await expect(getTask(admin, draft.id)).resolves.toBeTruthy();
     const dash = await getDashboard(eng, {});
     expect(dash.pendingDraft).toHaveLength(0);
+  });
+
+  it("創稿工作的負責人是專案經理（管理員），其他工作是案件負責人", async () => {
+    const { assignDraftTasksToPm } = await import("@/server/schedule/task-sync");
+    const pm = await makeUser("pm@example.com", "ADMIN");
+    const eng = await makeUser("eng@example.com");
+    const { schoolCase } = await createCase(pm, caseInput({ responsibleUserId: eng.id }));
+    const tasks = await prisma.task.findMany({ where: { caseId: schoolCase.id } });
+    for (const t of tasks) expect(t.assignedUserId).toBe(t.taskType.endsWith("_DRAFT") ? pm.id : eng.id);
+    // 舊資料：創稿指派給同事 → 調整為專案經理
+    await prisma.task.updateMany({ where: { caseId: schoolCase.id, taskType: "PRE_REPORT_DRAFT" }, data: { assignedUserId: eng.id } });
+    expect(await assignDraftTasksToPm()).toBe(1);
+    expect((await prisma.task.findFirstOrThrow({ where: { caseId: schoolCase.id, taskType: "PRE_REPORT_DRAFT" } })).assignedUserId).toBe(pm.id);
   });
 
   it("一般使用者不能以新 Email 自動建立帳號；未填負責人 Email 時提示", async () => {

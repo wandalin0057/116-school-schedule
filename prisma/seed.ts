@@ -236,6 +236,10 @@ async function main() {
   await seedCalendars();
   await seedAdmin();
   await seedDemo();
+  // 創稿工作由專案經理負責（既有案件一併調整）
+  const { assignDraftTasksToPm } = await import("../src/server/schedule/task-sync");
+  const n = await assignDraftTasksToPm();
+  if (n) console.log(`✓ ${n} 項創稿工作改由專案經理負責`);
 }
 
 main()

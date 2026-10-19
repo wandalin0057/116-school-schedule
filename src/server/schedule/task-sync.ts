@@ -1,9 +1,10 @@
-import type { Prisma, PrismaClient } from "@prisma/client";
+import type { Prisma, PrismaClient, TaskType } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { dbDateToISOOrNull, isoToDbDate, taipeiDateOf, type ISODate } from "@/lib/dates";
 import type { BusinessDayService } from "@/server/business-days/business-day-service";
 import { loadBusinessDayService } from "@/server/business-days/calendar-repository";
 import { DEFAULT_DEADLINE_RULES, type DeadlineRuleDef } from "./deadline-rules";
+import { ADMIN_ONLY_TASKS } from "./task-types";
 import {
   calculateSchedule,
   diffSchedule,
@@ -104,6 +105,13 @@ export async function syncCaseTasks(caseId: string, options: SyncOptions): Promi
   const rules = options.rules ?? (await loadDeadlineRules(db));
   const changes = await computeCaseScheduleChanges(caseId, anchors, { ...options, rules, db });
   const ruleByType = new Map(rules.map((r) => [r.taskType, r]));
+  // 創稿工作由專案經理（管理員）負責
+  let pmId: string | null | undefined;
+  const assigneeFor = async (type: TaskType) => {
+    if (!ADMIN_ONLY_TASKS.includes(type)) return schoolCase.responsibleUserId;
+    pmId ??= await projectManagerId(db);
+    return pmId ?? schoolCase.responsibleUserId;
+  };
 
   for (const ch of changes) {
     if (ch.action === "CREATE" && ch.newDate) {
@@ -117,7 +125,7 @@ export async function syncCaseTasks(caseId: string, options: SyncOptions): Promi
           description: rule?.description,
           calculatedDueDate: isoToDbDate(ch.newDate),
           dueDateEstimated: ch.estimated,
-          assignedUserId: schoolCase.responsibleUserId,
+          assignedUserId: await assigneeFor(ch.taskType),
         },
         update: {},
       });
@@ -174,4 +182,25 @@ export async function computeAllScheduleChanges(ctx: ComputeContext = {}): Promi
     out.push({ caseId: c.id, schoolName: c.schoolName, projectCode: c.projectCode, changes });
   }
   return out;
+}
+
+/** 專案經理：最早建立的啟用中管理員 */
+export async function projectManagerId(db: Prisma.TransactionClient | typeof prisma = prisma): Promise<string | null> {
+  const pm = await db.user.findFirst({ where: { role: "ADMIN", isActive: true }, orderBy: { createdAt: "asc" }, select: { id: true } });
+  return pm?.id ?? null;
+}
+
+/** 將尚未完成、且目前不是指派給管理員的創稿工作改由專案經理負責（可重複執行） */
+export async function assignDraftTasksToPm(db: Prisma.TransactionClient | typeof prisma = prisma): Promise<number> {
+  const pm = await projectManagerId(db);
+  if (!pm) return 0;
+  const r = await db.task.updateMany({
+    where: {
+      taskType: { in: ADMIN_ONLY_TASKS },
+      status: { notIn: ["COMPLETED", "CANCELLED"] },
+      OR: [{ assignedUserId: null }, { assignedUser: { role: { not: "ADMIN" } } }],
+    },
+    data: { assignedUserId: pm },
+  });
+  return r.count;
 }
