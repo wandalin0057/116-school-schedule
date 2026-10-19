@@ -40,7 +40,7 @@ export async function createDocumentDraft(user: AuthUser, input: { caseId: strin
   const body = renderTemplate(template.body, vars, { keep: [...KEEP_IN_STORAGE, "attachmentUrl", "downloadDeadlineROC"] }).text;
   const taskId =
     input.taskId ??
-    (await prisma.task.findUnique({ where: { caseId_taskType: { caseId: input.caseId, taskType: DISPATCH_TASK[input.documentType] } }, select: { id: true } }))?.id ??
+    (await prisma.task.findUnique({ where: { caseId_taskType: { caseId: input.caseId, taskType: DRAFT_TASK[input.documentType] } }, select: { id: true } }))?.id ??
     null;
   // 預設下載密碼（CD80@＋提供報告／圖面日期）與下載期限（創稿日期＋14 天）
   const today = taipeiToday();

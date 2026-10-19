@@ -53,13 +53,11 @@ export const TASK_TYPES_BY_CATEGORY = (cat: TaskCategory): TaskType[] =>
   (Object.keys(TASK_CATEGORY) as TaskType[]).filter((t) => TASK_CATEGORY[t] === cat);
 
 /** 工作類型對應之公文類型 */
+/** 可「產生公文」的工作：只有創稿（提供報告書／修正圖說不需公文） */
 export const TASK_DOCUMENT_TYPE: Partial<Record<TaskType, "PRE_REPORT" | "REVIEW_DRAWING" | "SITE_VISIT_DRAWING">> = {
   PRE_REPORT_DRAFT: "PRE_REPORT",
-  PRE_REPORT_DISPATCH: "PRE_REPORT",
   REVIEW_DRAWING_DRAFT: "REVIEW_DRAWING",
-  REVIEW_DRAWING_DISPATCH: "REVIEW_DRAWING",
   SITE_VISIT_DRAWING_DRAFT: "SITE_VISIT_DRAWING",
-  SITE_VISIT_DRAWING_DISPATCH: "SITE_VISIT_DRAWING",
 };
 
 /** 工作類型對應之 Email 範本 */
