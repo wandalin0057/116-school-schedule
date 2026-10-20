@@ -56,6 +56,25 @@ describe("期程自動計算", () => {
   });
 });
 
+describe("完整報告書與對照圖卡", () => {
+  it("機關通知次日起第 5 個工作天提送完整報告書；同意備查日起第 15 個工作天提供對照圖卡", () => {
+    const s = calculateSchedule(
+      { notificationDate: null, reviewMeetingDate: null, siteVisitDate: null, finalReportNoticeDate: "2026-10-14", finalReportApprovedDate: "2026-11-02" },
+      DEFAULT_DEADLINE_RULES,
+      bds,
+    );
+    // 10/14（三）→ 15、16、19、20、21 → 10/21
+    expect(due(s, "FINAL_REPORT_SUBMIT")).toBe("2026-10-21");
+    expect(due(s, "BEFORE_AFTER_CARDS")).toBe(bds.addBusinessDays("2026-11-02", 15).date);
+  });
+
+  it("未填日期時不產生期限", () => {
+    const s = calculateSchedule({ notificationDate: "2026-10-14", reviewMeetingDate: null, siteVisitDate: null }, DEFAULT_DEADLINE_RULES, bds);
+    expect(due(s, "FINAL_REPORT_SUBMIT")).toBeNull();
+    expect(due(s, "BEFORE_AFTER_CARDS")).toBeNull();
+  });
+});
+
 describe("期限差異比對", () => {
   const base = (over: Partial<ExistingTaskSnapshot>): ExistingTaskSnapshot => ({
     id: "t1",

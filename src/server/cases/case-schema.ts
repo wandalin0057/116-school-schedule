@@ -78,6 +78,8 @@ export const caseInputSchema = z.object({
   siteVisitDateTime: optionalDateTime,
   siteVisitLocation: optionalText(200),
   siteVisitUploadUrl: optionalUrl,
+  finalReportNoticeDate: optionalDate,
+  finalReportApprovedDate: optionalDate,
   status: z.enum(["ACTIVE", "ON_HOLD", "COMPLETED", "CANCELLED"]).default("ACTIVE"),
   notes: optionalText(5000),
   dateChangeReason: optionalText(500),

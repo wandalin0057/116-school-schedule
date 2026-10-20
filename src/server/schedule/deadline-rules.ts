@@ -14,6 +14,24 @@ export interface DeadlineRuleDef {
 /** 預設期限規則（依通學區規劃案作業流程） */
 export const DEFAULT_DEADLINE_RULES: DeadlineRuleDef[] = [
   {
+    taskType: "FINAL_REPORT_SUBMIT",
+    title: "提送完整之規劃及分析報告書",
+    description: "提供會勘後修正圖說後，機關通知次日起 5 個工作天內提送",
+    anchor: "FINAL_REPORT_NOTICE",
+    offsetBusinessDays: 5,
+    enabled: true,
+    sortOrder: 130,
+  },
+  {
+    taskType: "BEFORE_AFTER_CARDS",
+    title: "提供改善前後對照圖卡",
+    description: "收到機關同意備查完整之規劃及分析報告書之日起 15 個工作天內提供",
+    anchor: "FINAL_REPORT_APPROVED",
+    offsetBusinessDays: 15,
+    enabled: true,
+    sortOrder: 140,
+  },
+  {
     taskType: "PRE_REPORT_PROVIDE",
     title: "提供事前規劃報告書",
     description: "機關通知日（D0）後第 12 個工作天，由負責同事提供報告書",

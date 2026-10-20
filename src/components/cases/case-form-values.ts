@@ -17,6 +17,8 @@ type CaseRow = {
   siteVisitDateTime: Date | null;
   siteVisitLocation: string | null;
   siteVisitUploadUrl: string | null;
+  finalReportNoticeDate?: Date | null;
+  finalReportApprovedDate?: Date | null;
   status: string;
   notes: string | null;
 };
@@ -43,6 +45,8 @@ export function caseToFormValues(
     siteVisitDateTime: toTaipeiDateTimeInput(c?.siteVisitDateTime),
     siteVisitLocation: c?.siteVisitLocation ?? "",
     siteVisitUploadUrl: c?.siteVisitUploadUrl ?? "",
+    finalReportNoticeDate: dbDateToISOOrNull(c?.finalReportNoticeDate) ?? "",
+    finalReportApprovedDate: dbDateToISOOrNull(c?.finalReportApprovedDate) ?? "",
     status: c?.status ?? "ACTIVE",
     notes: c?.notes ?? "",
     dateChangeReason: "",

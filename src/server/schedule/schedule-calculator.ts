@@ -13,6 +13,10 @@ export interface ScheduleAnchors {
   reviewMeetingDate: ISODate | null;
   /** 會勘之臺北日曆日 */
   siteVisitDate: ISODate | null;
+  /** 機關通知提送完整報告書日 */
+  finalReportNoticeDate?: ISODate | null;
+  /** 機關同意備查日 */
+  finalReportApprovedDate?: ISODate | null;
 }
 
 export interface ComputedDeadline {
@@ -52,6 +56,10 @@ export function calculateSchedule(
         return anchors.reviewMeetingDate;
       case "SITE_VISIT":
         return anchors.siteVisitDate;
+      case "FINAL_REPORT_NOTICE":
+        return anchors.finalReportNoticeDate ?? null;
+      case "FINAL_REPORT_APPROVED":
+        return anchors.finalReportApprovedDate ?? null;
       default:
         return null;
     }

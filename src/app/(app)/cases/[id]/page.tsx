@@ -117,6 +117,8 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
                 {formatROCDateTime(c.siteVisitDateTime)}
                 {c.siteVisitLocation && <span className="block text-xs text-muted-foreground">{c.siteVisitLocation}</span>}
               </Info>
+              <Info label="機關通知提送完整報告書">{formatROCShort(dbDateToISOOrNull(c.finalReportNoticeDate))}</Info>
+              <Info label="機關同意備查">{formatROCShort(dbDateToISOOrNull(c.finalReportApprovedDate))}</Info>
               <Info label="會勘簡報上傳">
                 {c.siteVisitUploadUrl ? (
                   <a href={c.siteVisitUploadUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">

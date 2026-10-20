@@ -20,28 +20,28 @@ enum UserRole {
 }
 
 model User {
-  id                String    @id @default(cuid())
-  email             String    @unique
-  name              String
-  passwordHash      String
-  role              UserRole  @default(USER)
-  isActive          Boolean   @default(true)
-  failedLoginCount  Int       @default(0)
-  lockedUntil       DateTime? @db.Timestamptz
-  lastLoginAt       DateTime? @db.Timestamptz
-  passwordChangedAt DateTime? @db.Timestamptz
+  id                 String    @id @default(cuid())
+  email              String    @unique
+  name               String
+  passwordHash       String
+  role               UserRole  @default(USER)
+  isActive           Boolean   @default(true)
+  failedLoginCount   Int       @default(0)
+  lockedUntil        DateTime? @db.Timestamptz
+  lastLoginAt        DateTime? @db.Timestamptz
+  passwordChangedAt  DateTime? @db.Timestamptz
   // 仍在使用管理員設定之初始密碼（登入後提醒變更）
-  mustChangePassword Boolean  @default(false)
+  mustChangePassword Boolean   @default(false)
   // Email 草稿結尾的簽名檔（姓名、職稱、聯絡方式）
-  emailSignature    String?
+  emailSignature     String?
   // 簽名檔圖片（data URL，已於瀏覽器端縮小，上限約 300KB）
-  signatureImage    String?
+  signatureImage     String?
   // 簽名檔樣式（字型、大小、顏色、圖片寬度與位置）
-  signatureStyle    Json?
+  signatureStyle     Json?
   // 簽名檔（格式化 HTML，已於伺服器端以白名單過濾）
-  signatureHtml     String?
-  createdAt         DateTime  @default(now()) @db.Timestamptz
-  updatedAt         DateTime  @updatedAt @db.Timestamptz
+  signatureHtml      String?
+  createdAt          DateTime  @default(now()) @db.Timestamptz
+  updatedAt          DateTime  @updatedAt @db.Timestamptz
 
   sessions            Session[]
   responsibleCases    SchoolCase[]          @relation("CaseResponsible")
@@ -90,27 +90,31 @@ enum CaseStatus {
 }
 
 model SchoolCase {
-  id                    String     @id @default(cuid())
-  projectCode           String     @unique
-  projectName           String     @default("115年度臺北市通學區規劃分析案")
-  schoolName            String
-  district              String?
-  agencyName            String?
-  agencyContact         String?
-  agencyEmail           String?
-  responsibleUserId     String
-  notificationDate      DateTime?  @db.Date
+  id                      String     @id @default(cuid())
+  projectCode             String     @unique
+  projectName             String     @default("115年度臺北市通學區規劃分析案")
+  schoolName              String
+  district                String?
+  agencyName              String?
+  agencyContact           String?
+  agencyEmail             String?
+  responsibleUserId       String
+  notificationDate        DateTime?  @db.Date
   // 機關第幾次通知（Email 內文「第11次通知」）
-  notificationRound     Int?
-  reviewMeetingDateTime DateTime?  @db.Timestamptz
-  reviewMeetingLocation String?
-  siteVisitDateTime     DateTime?  @db.Timestamptz
-  siteVisitLocation     String?
-  siteVisitUploadUrl    String?
-  status                CaseStatus @default(ACTIVE)
-  notes                 String?
-  createdAt             DateTime   @default(now()) @db.Timestamptz
-  updatedAt             DateTime   @updatedAt @db.Timestamptz
+  notificationRound       Int?
+  reviewMeetingDateTime   DateTime?  @db.Timestamptz
+  reviewMeetingLocation   String?
+  siteVisitDateTime       DateTime?  @db.Timestamptz
+  siteVisitLocation       String?
+  siteVisitUploadUrl      String?
+  // 機關通知提送完整之規劃及分析報告書日（提供會勘後修正圖說後）
+  finalReportNoticeDate   DateTime?  @db.Date
+  // 機關同意備查完整之規劃及分析報告書日
+  finalReportApprovedDate DateTime?  @db.Date
+  status                  CaseStatus @default(ACTIVE)
+  notes                   String?
+  createdAt               DateTime   @default(now()) @db.Timestamptz
+  updatedAt               DateTime   @updatedAt @db.Timestamptz
 
   responsibleUser User               @relation("CaseResponsible", fields: [responsibleUserId], references: [id], onDelete: Restrict)
   members         CaseMember[]
@@ -173,6 +177,8 @@ enum TaskType {
   SITE_VISIT_MINUTES_EMAIL
   SITE_VISIT_DRAWING_DRAFT
   SITE_VISIT_DRAWING_DISPATCH
+  FINAL_REPORT_SUBMIT
+  BEFORE_AFTER_CARDS
 }
 
 model Task {
@@ -229,6 +235,8 @@ enum DeadlineAnchor {
   REVIEW_MEETING
   SITE_VISIT
   PRE_REPORT_DISPATCH
+  FINAL_REPORT_NOTICE // 機關通知提送完整報告書日
+  FINAL_REPORT_APPROVED // 機關同意備查日
 }
 
 model DeadlineRule {

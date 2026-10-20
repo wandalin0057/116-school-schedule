@@ -1,6 +1,8 @@
 import type { DeadlineAnchor, TaskStatus, TaskType } from "@prisma/client";
 
 export const TASK_TYPE_LABELS: Record<TaskType, string> = {
+  FINAL_REPORT_SUBMIT: "提送完整規劃及分析報告書",
+  BEFORE_AFTER_CARDS: "提供改善前後對照圖卡",
   PRE_REPORT_PROVIDE: "提供事前規劃報告書",
   PRE_REPORT_DRAFT: "事前規劃報告書創稿",
   PRE_REPORT_DISPATCH: "事前規劃報告書提供圖說",
@@ -29,11 +31,15 @@ export const ANCHOR_LABELS: Record<DeadlineAnchor, string> = {
   REVIEW_MEETING: "審查會議日",
   SITE_VISIT: "會勘日",
   PRE_REPORT_DISPATCH: "事前規劃報告書提供圖說日",
+  FINAL_REPORT_NOTICE: "機關通知提送完整報告書日",
+  FINAL_REPORT_APPROVED: "機關同意備查日",
 };
 
-export type TaskCategory = "DRAFT" | "DISPATCH" | "EMAIL" | "UPLOAD" | "EVENT";
+export type TaskCategory = "DRAFT" | "DISPATCH" | "EMAIL" | "UPLOAD" | "EVENT" | "REPORT";
 
 export const TASK_CATEGORY: Record<TaskType, TaskCategory> = {
+  FINAL_REPORT_SUBMIT: "REPORT",
+  BEFORE_AFTER_CARDS: "REPORT",
   PRE_REPORT_PROVIDE: "DISPATCH",
   PRE_REPORT_DRAFT: "DRAFT",
   PRE_REPORT_DISPATCH: "DISPATCH",
@@ -74,6 +80,7 @@ export const TASK_COLORS: Record<TaskCategory, { bg: string; text: string; borde
   EMAIL: { bg: "bg-emerald-50", text: "text-emerald-800", border: "border-emerald-300", dot: "bg-emerald-600", label: "Email" },
   UPLOAD: { bg: "bg-violet-50", text: "text-violet-800", border: "border-violet-300", dot: "bg-violet-600", label: "上傳簡報" },
   EVENT: { bg: "bg-rose-50", text: "text-rose-800", border: "border-rose-300", dot: "bg-rose-600", label: "會議／會勘" },
+  REPORT: { bg: "bg-teal-50", text: "text-teal-800", border: "border-teal-300", dot: "bg-teal-600", label: "完整報告書／圖卡" },
 };
 
 /**
@@ -101,6 +108,8 @@ export const TASK_TIMELINE_ORDER: TaskType[] = [
   "SITE_VISIT_MINUTES_EMAIL",
   "SITE_VISIT_DRAWING_DRAFT",
   "SITE_VISIT_DRAWING_DISPATCH",
+  "FINAL_REPORT_SUBMIT",
+  "BEFORE_AFTER_CARDS",
 ];
 
 /** 已移除之工項（不再建立，既有資料不顯示） */

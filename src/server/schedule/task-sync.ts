@@ -43,11 +43,15 @@ export function anchorsFromCase(c: {
   notificationDate: Date | null;
   reviewMeetingDateTime: Date | null;
   siteVisitDateTime: Date | null;
+  finalReportNoticeDate?: Date | null;
+  finalReportApprovedDate?: Date | null;
 }): ScheduleAnchors {
   return {
     notificationDate: dbDateToISOOrNull(c.notificationDate),
     reviewMeetingDate: c.reviewMeetingDateTime ? taipeiDateOf(c.reviewMeetingDateTime) : null,
     siteVisitDate: c.siteVisitDateTime ? taipeiDateOf(c.siteVisitDateTime) : null,
+    finalReportNoticeDate: dbDateToISOOrNull(c.finalReportNoticeDate),
+    finalReportApprovedDate: dbDateToISOOrNull(c.finalReportApprovedDate),
   };
 }
 

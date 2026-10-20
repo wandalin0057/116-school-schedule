@@ -60,7 +60,11 @@ export function CaseForm({
   const responsibleIsNew = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(emailTrim) && !responsibleMatch;
   const set = (k: keyof FormValues) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setV((s) => ({ ...s, [k]: e.target.value }));
   const datesChanged =
-    v.notificationDate !== initial.notificationDate || v.reviewMeetingDateTime !== initial.reviewMeetingDateTime || v.siteVisitDateTime !== initial.siteVisitDateTime;
+    v.notificationDate !== initial.notificationDate ||
+    v.reviewMeetingDateTime !== initial.reviewMeetingDateTime ||
+    v.siteVisitDateTime !== initial.siteVisitDateTime ||
+    v.finalReportNoticeDate !== initial.finalReportNoticeDate ||
+    v.finalReportApprovedDate !== initial.finalReportApprovedDate;
 
   const handleErrors = (res: { ok: boolean; fieldErrors?: Record<string, string[] | undefined> }) => {
     if (!res.ok && res.fieldErrors) {
@@ -269,6 +273,22 @@ export function CaseForm({
           </Field>
           <Field label="會勘簡報上傳網址" name="siteVisitUploadUrl" error={errors.siteVisitUploadUrl} hint="承辦提供之上傳連結">
             <Input id="siteVisitUploadUrl" type="url" value={v.siteVisitUploadUrl} onChange={set("siteVisitUploadUrl")} placeholder="https://" />
+          </Field>
+          <Field
+            label="機關通知提送完整報告書日"
+            name="finalReportNoticeDate"
+            error={errors.finalReportNoticeDate}
+            hint="提供會勘後修正圖說後，機關通知之日；次日起 5 個工作天內提送完整之規劃及分析報告書"
+          >
+            <Input id="finalReportNoticeDate" type="date" value={v.finalReportNoticeDate} onChange={set("finalReportNoticeDate")} />
+          </Field>
+          <Field
+            label="機關同意備查日"
+            name="finalReportApprovedDate"
+            error={errors.finalReportApprovedDate}
+            hint="收到機關同意備查完整報告書之日；起 15 個工作天內提供改善前後對照圖卡"
+          >
+            <Input id="finalReportApprovedDate" type="date" value={v.finalReportApprovedDate} onChange={set("finalReportApprovedDate")} />
           </Field>
           {mode === "edit" && datesChanged && (
             <Field label="日期異動原因" name="dateChangeReason" error={errors.dateChangeReason} hint="將記錄於異動歷史">

@@ -168,6 +168,15 @@ describe.skipIf(!hasTestDb)("案件期程同步（資料庫）", () => {
     expect((await prisma.task.findFirstOrThrow({ where: { caseId: schoolCase.id, taskType: "PRE_REPORT_DRAFT" } })).assignedUserId).toBe(pm.id);
   });
 
+  it("填寫機關通知提送完整報告書日、同意備查日後建立對應工作", async () => {
+    const u = await makeUser("pm@example.com", "ADMIN");
+    const { schoolCase } = await createCase(u, caseInput({ responsibleUserId: u.id }));
+    expect(await prisma.task.count({ where: { caseId: schoolCase.id, taskType: { in: ["FINAL_REPORT_SUBMIT", "BEFORE_AFTER_CARDS"] } } })).toBe(0);
+    await updateCase(u, schoolCase.id, caseInput({ responsibleUserId: u.id, finalReportNoticeDate: "2026-10-14", finalReportApprovedDate: "2026-11-02" }));
+    expect((await dueOf(schoolCase.id, "FINAL_REPORT_SUBMIT")).due).toBe("2026-10-21");
+    expect((await dueOf(schoolCase.id, "BEFORE_AFTER_CARDS")).due).toBeTruthy();
+  });
+
   it("一般使用者不能以新 Email 自動建立帳號；未填負責人 Email 時提示", async () => {
     const u = await makeUser("user@example.com");
     await expect(createCase(u, caseInput({ responsibleName: "新人", responsibleEmail: "new@example.com" }))).rejects.toThrow(/尚未建立帳號/);

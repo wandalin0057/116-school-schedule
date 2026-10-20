@@ -78,6 +78,8 @@ function toDbFields(p: ResolvedCase) {
     siteVisitDateTime: p.siteVisitDateTime ? parseTaipeiDateTime(p.siteVisitDateTime) : null,
     siteVisitLocation: p.siteVisitLocation,
     siteVisitUploadUrl: p.siteVisitUploadUrl,
+    finalReportNoticeDate: p.finalReportNoticeDate ? isoToDbDate(p.finalReportNoticeDate) : null,
+    finalReportApprovedDate: p.finalReportApprovedDate ? isoToDbDate(p.finalReportApprovedDate) : null,
     status: p.status as CaseStatus,
     notes: p.notes,
   };
@@ -159,6 +161,8 @@ export async function previewCaseUpdate(user: AuthUser, caseId: string, input: C
     notificationDate: p.notificationDate as ISODate | null,
     reviewMeetingDate: p.reviewMeetingDateTime ? taipeiDateOf(parseTaipeiDateTime(p.reviewMeetingDateTime)) : null,
     siteVisitDate: p.siteVisitDateTime ? taipeiDateOf(parseTaipeiDateTime(p.siteVisitDateTime)) : null,
+    finalReportNoticeDate: p.finalReportNoticeDate as ISODate | null,
+    finalReportApprovedDate: p.finalReportApprovedDate as ISODate | null,
   };
   return computeCaseScheduleChanges(caseId, anchors);
 }
@@ -182,7 +186,11 @@ export async function updateCase(user: AuthUser, caseId: string, input: CaseInpu
   const data = toDbFields(p);
   const fieldDiff = diffFields(before as unknown as Record<string, unknown>, data as unknown as Record<string, unknown>);
   const datesChanged =
-    "notificationDate" in fieldDiff || "reviewMeetingDateTime" in fieldDiff || "siteVisitDateTime" in fieldDiff;
+    "notificationDate" in fieldDiff ||
+    "reviewMeetingDateTime" in fieldDiff ||
+    "siteVisitDateTime" in fieldDiff ||
+    "finalReportNoticeDate" in fieldDiff ||
+    "finalReportApprovedDate" in fieldDiff;
 
   return prisma.$transaction(
     async (tx) => {
