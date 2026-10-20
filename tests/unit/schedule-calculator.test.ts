@@ -68,6 +68,17 @@ describe("完整報告書與對照圖卡", () => {
     expect(due(s, "BEFORE_AFTER_CARDS")).toBe(bds.addBusinessDays("2026-11-02", 15).date);
   });
 
+  it("創稿在提送／提供的前一個工作天", () => {
+    const s = calculateSchedule(
+      { notificationDate: null, reviewMeetingDate: null, siteVisitDate: null, finalReportNoticeDate: "2026-10-14", finalReportApprovedDate: "2026-11-02" },
+      DEFAULT_DEADLINE_RULES,
+      bds,
+    );
+    expect(due(s, "FINAL_REPORT_DRAFT")).toBe("2026-10-20");
+    expect(due(s, "BEFORE_AFTER_CARDS_DRAFT")).toBe(bds.addBusinessDays("2026-11-02", 14).date);
+    expect(bds.addBusinessDays(due(s, "BEFORE_AFTER_CARDS_DRAFT")!, 1).date).toBe(due(s, "BEFORE_AFTER_CARDS"));
+  });
+
   it("未填日期時不產生期限", () => {
     const s = calculateSchedule({ notificationDate: "2026-10-14", reviewMeetingDate: null, siteVisitDate: null }, DEFAULT_DEADLINE_RULES, bds);
     expect(due(s, "FINAL_REPORT_SUBMIT")).toBeNull();

@@ -3,6 +3,8 @@ import type { DeadlineAnchor, TaskStatus, TaskType } from "@prisma/client";
 export const TASK_TYPE_LABELS: Record<TaskType, string> = {
   FINAL_REPORT_SUBMIT: "提送完整規劃及分析報告書",
   BEFORE_AFTER_CARDS: "提供改善前後對照圖卡",
+  FINAL_REPORT_DRAFT: "完整規劃及分析報告書創稿",
+  BEFORE_AFTER_CARDS_DRAFT: "改善前後對照圖卡創稿",
   PRE_REPORT_PROVIDE: "提供事前規劃報告書",
   PRE_REPORT_DRAFT: "事前規劃報告書創稿",
   PRE_REPORT_DISPATCH: "事前規劃報告書提供圖說",
@@ -40,6 +42,8 @@ export type TaskCategory = "DRAFT" | "DISPATCH" | "EMAIL" | "UPLOAD" | "EVENT" |
 export const TASK_CATEGORY: Record<TaskType, TaskCategory> = {
   FINAL_REPORT_SUBMIT: "REPORT",
   BEFORE_AFTER_CARDS: "REPORT",
+  FINAL_REPORT_DRAFT: "DRAFT",
+  BEFORE_AFTER_CARDS_DRAFT: "DRAFT",
   PRE_REPORT_PROVIDE: "DISPATCH",
   PRE_REPORT_DRAFT: "DRAFT",
   PRE_REPORT_DISPATCH: "DISPATCH",
@@ -92,6 +96,8 @@ export const COLLEAGUE_REMINDER_TASKS: TaskType[] = [
   "REVIEW_SLIDES_EMAIL",
   "SITE_VISIT_DRAWING_DISPATCH",
   "REVIEW_DRAWING_DISPATCH",
+  "FINAL_REPORT_SUBMIT",
+  "BEFORE_AFTER_CARDS",
 ];
 
 /** 工作依作業流程（一般期限先後）排列：創稿（通知後第 11 個工作天）→ 提供報告書（第 12 天）→ 提供圖說 → 審查 → 會勘 */
@@ -108,7 +114,9 @@ export const TASK_TIMELINE_ORDER: TaskType[] = [
   "SITE_VISIT_MINUTES_EMAIL",
   "SITE_VISIT_DRAWING_DRAFT",
   "SITE_VISIT_DRAWING_DISPATCH",
+  "FINAL_REPORT_DRAFT",
   "FINAL_REPORT_SUBMIT",
+  "BEFORE_AFTER_CARDS_DRAFT",
   "BEFORE_AFTER_CARDS",
 ];
 
@@ -116,7 +124,13 @@ export const TASK_TIMELINE_ORDER: TaskType[] = [
 export const REMOVED_TASKS: TaskType[] = ["PRE_REPORT_DISPATCH"];
 
 /** 只顯示給管理員（專案經理）的工作：各項創稿；一般使用者的工作清單、儀表板、行事曆與案件頁不顯示 */
-export const ADMIN_ONLY_TASKS: TaskType[] = ["PRE_REPORT_DRAFT", "REVIEW_DRAWING_DRAFT", "SITE_VISIT_DRAWING_DRAFT"];
+export const ADMIN_ONLY_TASKS: TaskType[] = [
+  "PRE_REPORT_DRAFT",
+  "REVIEW_DRAWING_DRAFT",
+  "SITE_VISIT_DRAWING_DRAFT",
+  "FINAL_REPORT_DRAFT",
+  "BEFORE_AFTER_CARDS_DRAFT",
+];
 
 export const OPEN_TASK_STATUSES: TaskStatus[] = ["NOT_STARTED", "IN_PROGRESS", "ON_HOLD"];
 export const CLOSED_TASK_STATUSES: TaskStatus[] = ["COMPLETED", "CANCELLED"];

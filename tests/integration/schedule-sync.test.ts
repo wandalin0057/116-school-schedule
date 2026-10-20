@@ -175,6 +175,11 @@ describe.skipIf(!hasTestDb)("案件期程同步（資料庫）", () => {
     await updateCase(u, schoolCase.id, caseInput({ responsibleUserId: u.id, finalReportNoticeDate: "2026-10-14", finalReportApprovedDate: "2026-11-02" }));
     expect((await dueOf(schoolCase.id, "FINAL_REPORT_SUBMIT")).due).toBe("2026-10-21");
     expect((await dueOf(schoolCase.id, "BEFORE_AFTER_CARDS")).due).toBeTruthy();
+    expect((await dueOf(schoolCase.id, "FINAL_REPORT_DRAFT")).due).toBe("2026-10-20");
+    // 創稿只給管理員；提送報告書與對照圖卡會提醒同事
+    const tasks = await prisma.task.findMany({ where: { caseId: schoolCase.id, taskType: { in: ["FINAL_REPORT_DRAFT", "BEFORE_AFTER_CARDS_DRAFT"] } } });
+    expect(tasks).toHaveLength(2);
+    for (const t of tasks) expect(t.assignedUserId).toBe(u.id);
   });
 
   it("一般使用者不能以新 Email 自動建立帳號；未填負責人 Email 時提示", async () => {

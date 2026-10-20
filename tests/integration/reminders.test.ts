@@ -45,7 +45,8 @@ describe.skipIf(!hasTestDb)("12. 每日提醒排程", () => {
   it("同事只收到提供報告書／簡報／修正圖說提醒；管理員收到全部工作提醒", async () => {
     const pm = await makeUser("pm@example.com", "ADMIN");
     const eng = await makeUser("eng@example.com");
-    await createCase(pm, caseInput({ responsibleUserId: eng.id }));
+    // 10/23 機關通知提送完整報告書 → 創稿 10/30、提送 11/2（10/26 放假）
+    await createCase(pm, caseInput({ responsibleUserId: eng.id, finalReportNoticeDate: "2026-10-23" }));
     const mailer = fakeMailer();
     const r = await runDailyReminders({ now: NOW, mailer, trigger: "MANUAL" });
     expect(r.sent).toBe(2);
@@ -61,6 +62,9 @@ describe.skipIf(!hasTestDb)("12. 每日提醒排程", () => {
     expect(pmText).toContain("｜審查會議｜");
     expect(pmText).toContain("｜提供事前規劃報告書｜");
     expect(pmText).toContain("｜提供審查簡報｜");
+    expect(engText).toContain("｜提送完整規劃及分析報告書｜");
+    expect(pmText).toContain("｜提送完整規劃及分析報告書｜");
+    expect(pmText).toContain("｜完整規劃及分析報告書創稿｜");
   });
 
   it("網站未設定寄信服務時不會標記為已寄出；先前模擬寄出的紀錄仍會由正式排程補寄", async () => {
