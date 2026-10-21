@@ -88,7 +88,7 @@ export const TASK_COLORS: Record<TaskCategory, { bg: string; text: string; borde
 };
 
 /**
- * 會寄 Email 提醒給負責同事的工作；其餘工作（創稿、提供圖說、會議、紀錄等）只提醒管理員。管理員一律收到全部工作的提醒。
+ * 會寄 Email 提醒給負責同事的工作；其餘工作（創稿、會議紀錄等）只提醒管理員。管理員一律收到全部工作的提醒。
  */
 export const COLLEAGUE_REMINDER_TASKS: TaskType[] = [
   "PRE_REPORT_PROVIDE",
@@ -96,6 +96,8 @@ export const COLLEAGUE_REMINDER_TASKS: TaskType[] = [
   "REVIEW_SLIDES_EMAIL",
   "SITE_VISIT_DRAWING_DISPATCH",
   "REVIEW_DRAWING_DISPATCH",
+  "REVIEW_MEETING",
+  "SITE_VISIT",
   "FINAL_REPORT_SUBMIT",
   "BEFORE_AFTER_CARDS",
 ];

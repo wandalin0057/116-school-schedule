@@ -42,7 +42,7 @@ describe.skipIf(!hasTestDb)("12. 每日提醒排程", () => {
     expect(await prisma.jobRun.count()).toBe(2);
   });
 
-  it("同事只收到提供報告書／簡報／修正圖說提醒；管理員收到全部工作提醒", async () => {
+  it("同事只收到提供報告書／簡報／會議會勘／修正圖說提醒；管理員收到全部工作提醒", async () => {
     const pm = await makeUser("pm@example.com", "ADMIN");
     const eng = await makeUser("eng@example.com");
     // 10/23 機關通知提送完整報告書 → 創稿 10/30、提送 11/2（10/26 放假）
@@ -57,7 +57,8 @@ describe.skipIf(!hasTestDb)("12. 每日提醒排程", () => {
     expect(engText).toContain("｜提供審查簡報｜");
     expect(engText).toContain("｜審查後提供修正圖說｜");
     expect(engText).not.toContain("創稿");
-    expect(engText).not.toContain("審查會議｜");
+    expect(engText).not.toContain("Email 審查會議紀錄");
+    expect(engText).toContain("｜審查會議｜");
     expect(pmText).toContain("｜事前規劃報告書創稿｜");
     expect(pmText).toContain("｜審查會議｜");
     expect(pmText).toContain("｜提供事前規劃報告書｜");
