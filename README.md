@@ -21,7 +21,7 @@
 | 儀表板 | 今日／明日／7 天內／逾期、待創稿／待發文／待寄 Email／待上傳簡報、本週會議與會勘、各校進度（即時查詢資料庫） |
 | 公文草稿 | 3 種範本（含版本管理）、即時預覽、複製、DOCX／PDF 匯出、列印、標記已創稿／已發文、使用者輸入正式發文字號 |
 | Email 草稿 | 3 種範本、複製、以郵件程式開啟；**系統不寄送業務信**，使用者確認寄出後才標記完成 |
-| 每日提醒 | 獨立排程（臺灣時間約 09:05～09:30），防重複寄送、失敗紀錄與安全重試、執行紀錄、測試模式 |
+| 每日提醒 | 獨立排程（臺灣時間 08:30 起），防重複寄送、失敗紀錄與安全重試、執行紀錄、測試模式 |
 | 行事曆 | 月／週／清單、依類型著色、篩選、ICS 匯出 |
 | 系統設定 | 使用者、通知、工作天、官方日曆匯入、期限重新計算、期限規則、範本、備份、操作紀錄 |
 
@@ -163,7 +163,7 @@ git push -u origin main
 本專案附 `render.yaml`（Blueprint），會建立：
 
 - `school-zone-web`：網站（Docker），健康檢查 `/api/health`
-- `school-zone-daily-reminders`：Cron Job，`5 1 * * *`（UTC 01:05 = 臺灣 09:05），執行 `npm run cron:daily-reminders`，與網站是否有人使用無關
+- `school-zone-daily-reminders`：Cron Job，`30 0 * * *`（UTC 00:30 = 臺灣 08:30），執行 `npm run cron:daily-reminders`，與網站是否有人使用無關
 - `school-zone-db`：PostgreSQL 16
 
 步驟：

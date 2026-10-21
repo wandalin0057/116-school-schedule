@@ -43,7 +43,7 @@ export function ResendDigestButton({ userId, name, to, disabled }: { userId: str
           <>
             <DialogHeader>
               <DialogTitle>補寄提醒信給 {name}？</DialogTitle>
-              <DialogDescription>會立即寄出上面預覽的這封信到 {to}。不影響明天早上 9:00～9:30 的每日提醒。</DialogDescription>
+              <DialogDescription>會立即寄出上面預覽的這封信到 {to}。不影響明天早上 8:30 的每日提醒。</DialogDescription>
             </DialogHeader>
             <DialogFooter>
               <Button variant="outline" onClick={() => setOpen(false)}>
