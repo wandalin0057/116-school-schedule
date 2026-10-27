@@ -8,7 +8,7 @@ import { ValidationError } from "@/server/errors";
 import { computeAllScheduleChanges, syncCaseTasks } from "@/server/schedule/task-sync";
 import { BusinessDayService, type CalendarDayEntry } from "./business-day-service";
 import { parseCalendarFile, type ParsedCalendar } from "./calendar-import";
-import { loadCalendarData } from "./calendar-repository";
+import { loadBusinessDayService, loadCalendarData } from "./calendar-repository";
 
 type CaseChanges = Awaited<ReturnType<typeof computeAllScheduleChanges>>;
 
@@ -101,10 +101,39 @@ const overrideSchema = z.object({
   reason: z.string().trim().min(2, "請填寫異動原因").max(500),
 });
 
-export async function addBusinessDayOverride(user: AuthUser, input: z.input<typeof overrideSchema>) {
-  assertAdmin(user);
+function parseOverride(input: z.input<typeof overrideSchema>) {
   const p = overrideSchema.safeParse(input);
   if (!p.success) throw new ValidationError(p.error.issues[0]?.message ?? "資料格式錯誤");
+  return p.data;
+}
+
+/** 預覽新增休假日／補行上班日後，各案件期限的變化（不寫入） */
+export async function previewBusinessDayOverride(user: AuthUser, input: z.input<typeof overrideSchema>) {
+  assertAdmin(user);
+  const data = parseOverride({ ...input, reason: input.reason || "預覽" });
+  const current = await loadBusinessDayService();
+  const overrides = new Map(current.getData().overrides);
+  overrides.set(data.date, { kind: data.kind, description: data.reason, reason: data.reason });
+  return onlySignificant(await computeAllScheduleChanges({ bds: current.withData({ overrides }) }));
+}
+
+/** 進行中案件依目前日曆重新計算期限（已完成、人工鎖定者不變） */
+async function recalcActiveCases(actorId: string, reason: string) {
+  const cases = await prisma.schoolCase.findMany({ where: { status: { in: ["ACTIVE", "ON_HOLD"] } }, select: { id: true } });
+  let updated = 0;
+  let created = 0;
+  for (const c of cases) {
+    const changes = await syncCaseTasks(c.id, { actorId, source: "CALENDAR_RECALC", reason });
+    updated += changes.filter((x) => x.action === "UPDATE" || x.action === "CLEAR").length;
+    created += changes.filter((x) => x.action === "CREATE").length;
+  }
+  return { updated, created };
+}
+
+/** 新增休假日（例如颱風假）或補行上班日，並自動重新計算所有進行中案件的期限 */
+export async function addBusinessDayOverride(user: AuthUser, input: z.input<typeof overrideSchema>) {
+  assertAdmin(user);
+  const p = { data: parseOverride(input) };
   const existing = await prisma.businessDayOverride.findUnique({ where: { date: isoToDbDate(p.data.date) } });
   const row = await prisma.businessDayOverride.upsert({
     where: { date: isoToDbDate(p.data.date) },
@@ -119,7 +148,8 @@ export async function addBusinessDayOverride(user: AuthUser, input: z.input<type
     summary: `${p.data.date} 設為${p.data.kind === "HOLIDAY" ? "休假日" : "補行上班日"}，原因：${p.data.reason}`,
     changes: { date: p.data.date, kind: p.data.kind, previousKind: existing?.kind ?? null },
   });
-  return row;
+  const label = `${p.data.date} ${p.data.kind === "HOLIDAY" ? "休假" : "補行上班"}：${p.data.reason}`;
+  return { row, ...(await recalcActiveCases(user.id, label)) };
 }
 
 export async function removeBusinessDayOverride(user: AuthUser, id: string, reason: string) {
@@ -136,6 +166,7 @@ export async function removeBusinessDayOverride(user: AuthUser, id: string, reas
     summary: `刪除 ${dbDateToISO(row.date)} 之工作天調整，原因：${reason}`,
     changes: { date: dbDateToISO(row.date), kind: row.kind },
   });
+  return recalcActiveCases(user.id, `刪除 ${dbDateToISO(row.date)} 工作天調整：${reason}`);
 }
 
 /** 依目前日曆與規則，預覽所有進行中案件之期限差異 */

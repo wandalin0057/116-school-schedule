@@ -1,6 +1,7 @@
 import { CalendarDays, ChevronLeft, ChevronRight, Download, List, Rows3 } from "lucide-react";
 import Link from "next/link";
 import { ListControls } from "@/components/common/list-controls";
+import { AddHolidayButton } from "@/components/settings/calendar-admin";
 import { EmptyState, PageHeader } from "@/components/common/page-header";
 import { buildHref } from "@/components/common/table-nav";
 import { Button } from "@/components/ui/button";
@@ -112,12 +113,15 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
         title="行事曆"
         description="依工作期限顯示；不同工作類型以顏色區分，點擊可開啟工作詳情。"
         actions={
-          <Button asChild variant="outline">
-            <a href={`/api/calendar/ics?${icsParams.toString()}`}>
-              <Download />
-              匯出 ICS
-            </a>
-          </Button>
+          <>
+            {user.role === "ADMIN" && <AddHolidayButton />}
+            <Button asChild variant="outline">
+              <a href={`/api/calendar/ics?${icsParams.toString()}`}>
+                <Download />
+                匯出 ICS
+              </a>
+            </Button>
+          </>
         }
       />
       <Card>

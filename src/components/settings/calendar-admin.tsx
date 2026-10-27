@@ -2,11 +2,13 @@
 import { CalendarPlus, FileUp, Loader2, RefreshCw, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { toast } from "sonner";
 import {
   addOverrideAction,
   applyCalendarImportAction,
   applyRecalculationAction,
   previewCalendarImportAction,
+  previewOverrideAction,
   removeOverrideAction,
 } from "@/app/actions/settings";
 import { ScheduleDiffTable } from "@/components/common/schedule-diff-table";
@@ -144,37 +146,106 @@ export function CalendarImportForm() {
   );
 }
 
-export function OverrideForm() {
-  const [v, setV] = useState({ date: "", kind: "HOLIDAY" as "HOLIDAY" | "MAKEUP_WORKDAY", reason: "" });
+type OverrideKind = "HOLIDAY" | "MAKEUP_WORKDAY";
+
+/** 新增休假日（例如颱風假）或補行上班日：先預覽期限變化，確認後自動往後（或往前）調整所有進行中案件 */
+export function OverrideForm({ onDone, compact = false }: { onDone?: () => void; compact?: boolean }) {
+  const [v, setV] = useState({ date: "", kind: "HOLIDAY" as OverrideKind, reason: "" });
+  const [diffs, setDiffs] = useState<CaseDiff[] | null>(null);
   const { run, pending } = useAction();
+  const set = (patch: Partial<typeof v>) => {
+    setV((s) => ({ ...s, ...patch }));
+    setDiffs(null);
+  };
+  const taskCount = diffs?.reduce((n, d) => n + d.changes.filter((c) => c.action !== "SKIP_LOCKED").length, 0) ?? 0;
   return (
     <form
-      className="grid gap-3 md:grid-cols-[160px_160px_1fr_auto] md:items-end"
+      className="space-y-3"
       onSubmit={(e) => {
         e.preventDefault();
-        void run(() => addOverrideAction(v), { onSuccess: () => setV({ date: "", kind: "HOLIDAY", reason: "" }) });
+        void run(() => previewOverrideAction(v), { refresh: false, onSuccess: (d) => d && setDiffs(d) });
       }}
     >
-      <div className="space-y-1.5">
-        <Label htmlFor="ov-date">日期</Label>
-        <Input id="ov-date" type="date" value={v.date} onChange={(e) => setV((s) => ({ ...s, date: e.target.value }))} required />
+      <div className={compact ? "grid gap-3" : "grid gap-3 md:grid-cols-[160px_180px_1fr_auto] md:items-end"}>
+        <div className="space-y-1.5">
+          <Label htmlFor="ov-date">日期</Label>
+          <Input id="ov-date" type="date" value={v.date} onChange={(e) => set({ date: e.target.value })} required />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="ov-kind">類型</Label>
+          <Select id="ov-kind" value={v.kind} onChange={(e) => set({ kind: e.target.value as OverrideKind })}>
+            <option value="HOLIDAY">放假日（例如颱風假）</option>
+            <option value="MAKEUP_WORKDAY">補行上班日</option>
+          </Select>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="ov-reason">原因（必填）</Label>
+          <Input id="ov-reason" value={v.reason} onChange={(e) => set({ reason: e.target.value })} placeholder="例如：颱風停止上班（北市府公告）" required />
+        </div>
+        {!diffs && (
+          <Button type="submit" variant="outline" disabled={pending}>
+            {pending ? <Loader2 className="animate-spin" /> : <CalendarPlus />}
+            預覽期限變更
+          </Button>
+        )}
       </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="ov-kind">類型</Label>
-        <Select id="ov-kind" value={v.kind} onChange={(e) => setV((s) => ({ ...s, kind: e.target.value as "HOLIDAY" | "MAKEUP_WORKDAY" }))}>
-          <option value="HOLIDAY">休假日（不上班）</option>
-          <option value="MAKEUP_WORKDAY">補行上班日</option>
-        </Select>
-      </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="ov-reason">原因（必填）</Label>
-        <Input id="ov-reason" value={v.reason} onChange={(e) => setV((s) => ({ ...s, reason: e.target.value }))} placeholder="例如：颱風停止上班（北市府公告）" required />
-      </div>
-      <Button type="submit" disabled={pending}>
-        {pending ? <Loader2 className="animate-spin" /> : <CalendarPlus />}
-        新增調整
-      </Button>
+      {diffs && (
+        <div className="space-y-3 rounded-md border bg-slate-50 p-3">
+          <p className="text-sm font-semibold">
+            {diffs.length ? `將調整 ${diffs.length} 所學校、${taskCount} 項工作的期限（已完成及人工鎖定的工作不變）` : "此日期不影響任何進行中工作的期限"}
+          </p>
+          {diffs.length > 0 && (
+            <div className="max-h-80 overflow-y-auto">
+              <CaseDiffList diffs={diffs} />
+            </div>
+          )}
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              disabled={pending}
+              onClick={() =>
+                run(() => addOverrideAction(v), {
+                  onSuccess: (r) => {
+                    toast.success(r && r.updated + r.created ? `已更新 ${r.updated + r.created} 項工作的期限` : "已新增，期限無需變更");
+                    setV({ date: "", kind: "HOLIDAY", reason: "" });
+                    setDiffs(null);
+                    onDone?.();
+                  },
+                })
+              }
+            >
+              {pending && <Loader2 className="animate-spin" />}
+              確認新增並更新期限
+            </Button>
+            <Button type="button" variant="outline" disabled={pending} onClick={() => setDiffs(null)}>
+              返回修改
+            </Button>
+          </div>
+        </div>
+      )}
     </form>
+  );
+}
+
+/** 行事曆頁的「新增放假日」按鈕（管理員） */
+export function AddHolidayButton() {
+  const [open, setOpen] = useState(false);
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm">
+          <CalendarPlus />
+          新增放假日
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>新增放假日（颱風假等）</DialogTitle>
+          <DialogDescription>新增後，所有進行中案件的期限會自動跳過這一天往後順延；已完成及人工鎖定的工作不會變動。</DialogDescription>
+        </DialogHeader>
+        <OverrideForm compact onDone={() => setOpen(false)} />
+      </DialogContent>
+    </Dialog>
   );
 }
 

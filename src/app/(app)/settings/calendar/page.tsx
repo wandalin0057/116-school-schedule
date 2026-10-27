@@ -116,7 +116,7 @@ export default async function CalendarSettingsPage({ searchParams }: { searchPar
         <Card className="xl:col-span-2">
           <CardHeader>
             <CardTitle>手動調整（休假日／補行上班日）</CardTitle>
-            <p className="text-sm text-muted-foreground">例如颱風停止上班。手動調整優先於官方日曆，並記錄操作者、時間及原因。</p>
+            <p className="text-sm text-muted-foreground">例如颱風停止上班。新增或刪除後，所有進行中案件的期限會自動重新計算（已完成、人工鎖定者不變）。手動調整優先於官方日曆，並記錄操作者、時間及原因。</p>
           </CardHeader>
           <CardContent className="space-y-4">
             <OverrideForm />

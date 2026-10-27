@@ -182,6 +182,25 @@ describe.skipIf(!hasTestDb)("案件期程同步（資料庫）", () => {
     for (const t of tasks) expect(t.assignedUserId).toBe(u.id);
   });
 
+  it("手動新增颱風假：預覽後期限自動往後順延，已完成者不變；刪除後恢復", async () => {
+    const { addBusinessDayOverride, previewBusinessDayOverride, removeBusinessDayOverride } = await import("@/server/business-days/calendar-admin-service");
+    const u = await makeUser("pm@example.com", "ADMIN");
+    const { schoolCase } = await createCase(u, caseInput({ responsibleUserId: u.id }));
+    const draft = await dueOf(schoolCase.id, "PRE_REPORT_DRAFT");
+    await completeTask(u, draft.id);
+    const input = { date: "2026-10-28", kind: "HOLIDAY" as const, reason: "颱風停止上班" };
+    const preview = await previewBusinessDayOverride(u, input);
+    const change = preview[0]!.changes.find((c) => c.taskType === "PRE_REPORT_PROVIDE");
+    expect(change).toMatchObject({ action: "UPDATE", newDate: "2026-11-03" });
+    expect((await dueOf(schoolCase.id, "PRE_REPORT_PROVIDE")).due).toBe("2026-11-02");
+    const r = await addBusinessDayOverride(u, input);
+    expect(r.updated).toBeGreaterThan(0);
+    expect((await dueOf(schoolCase.id, "PRE_REPORT_PROVIDE")).due).toBe("2026-11-03");
+    expect((await dueOf(schoolCase.id, "PRE_REPORT_DRAFT")).due).toBe("2026-10-30");
+    await removeBusinessDayOverride(u, r.row.id, "誤植");
+    expect((await dueOf(schoolCase.id, "PRE_REPORT_PROVIDE")).due).toBe("2026-11-02");
+  });
+
   it("一般使用者不能以新 Email 自動建立帳號；未填負責人 Email 時提示", async () => {
     const u = await makeUser("user@example.com");
     await expect(createCase(u, caseInput({ responsibleName: "新人", responsibleEmail: "new@example.com" }))).rejects.toThrow(/尚未建立帳號/);

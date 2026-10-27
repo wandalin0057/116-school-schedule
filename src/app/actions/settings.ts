@@ -6,6 +6,7 @@ import {
   addBusinessDayOverride,
   applyCalendarImport,
   applyRecalculation,
+  previewBusinessDayOverride,
   previewCalendarImport,
   previewRecalculation,
   removeBusinessDayOverride,
@@ -94,13 +95,17 @@ export async function applyCalendarImportAction(args: { fileName: string; text: 
     return { years: parsed.years.map((y) => y.year) };
   }, "辦公日曆已匯入，請至「期限重新計算」檢視並套用差異");
 }
+export async function previewOverrideAction(input: { date: string; kind: "HOLIDAY" | "MAKEUP_WORKDAY"; reason: string }) {
+  return runAction(async () => previewBusinessDayOverride(await requireAdminForAction(), input));
+}
 export async function addOverrideAction(input: { date: string; kind: "HOLIDAY" | "MAKEUP_WORKDAY"; reason: string }) {
   return runAction(async () => {
-    await addBusinessDayOverride(await requireAdminForAction(), input);
-  }, "已新增工作天調整，請至「期限重新計算」套用");
+    const r = await addBusinessDayOverride(await requireAdminForAction(), input);
+    return { updated: r.updated, created: r.created };
+  });
 }
 export async function removeOverrideAction(id: string, reason: string) {
-  return runAction(async () => removeBusinessDayOverride(await requireAdminForAction(), id, reason), "已刪除工作天調整");
+  return runAction(async () => removeBusinessDayOverride(await requireAdminForAction(), id, reason), "已刪除，期限已自動重新計算");
 }
 export async function previewRecalculationAction() {
   return runAction(async () => {
