@@ -50,6 +50,15 @@ export const DEFAULT_DEADLINE_RULES: DeadlineRuleDef[] = [
     sortOrder: 140,
   },
   {
+    taskType: "RESULT_VIDEO",
+    title: "提供成果影片",
+    description: "僅部分學校需要；於案件填寫「成果影片期限」後建立，期限即為該日",
+    anchor: "RESULT_VIDEO_DUE",
+    offsetBusinessDays: 0,
+    enabled: true,
+    sortOrder: 150,
+  },
+  {
     taskType: "PRE_REPORT_PROVIDE",
     title: "提供事前規劃報告書",
     description: "機關通知日（D0）後第 12 個工作天，由負責同事提供報告書",

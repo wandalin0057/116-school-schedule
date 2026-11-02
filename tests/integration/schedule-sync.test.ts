@@ -182,6 +182,21 @@ describe.skipIf(!hasTestDb)("案件期程同步（資料庫）", () => {
     for (const t of tasks) expect(t.assignedUserId).toBe(u.id);
   });
 
+  it("成果影片為獨立工項：僅填寫成果影片期限的學校建立，期限即為該日", async () => {
+    const u = await makeUser("pm@example.com", "ADMIN");
+    const eng = await makeUser("eng@example.com");
+    const { schoolCase } = await createCase(u, caseInput({ responsibleUserId: eng.id }));
+    expect(await prisma.task.count({ where: { caseId: schoolCase.id, taskType: "RESULT_VIDEO" } })).toBe(0);
+    await updateCase(u, schoolCase.id, caseInput({ responsibleUserId: eng.id, resultVideoDueDate: "2026-12-15", dateChangeReason: "需製作成果影片" }));
+    const video = await dueOf(schoolCase.id, "RESULT_VIDEO");
+    expect(video.due).toBe("2026-12-15");
+    expect(video.assignedUserId).toBe(eng.id);
+    expect(video.title).toBe("提供成果影片");
+    // 清除期限後不再有期限
+    await updateCase(u, schoolCase.id, caseInput({ responsibleUserId: eng.id, resultVideoDueDate: "", dateChangeReason: "不需影片" }));
+    expect(await prisma.task.count({ where: { caseId: schoolCase.id, taskType: "RESULT_VIDEO" } })).toBe(0);
+  });
+
   it("手動新增颱風假：預覽後期限自動往後順延，已完成者不變；刪除後恢復", async () => {
     const { addBusinessDayOverride, previewBusinessDayOverride, removeBusinessDayOverride } = await import("@/server/business-days/calendar-admin-service");
     const u = await makeUser("pm@example.com", "ADMIN");

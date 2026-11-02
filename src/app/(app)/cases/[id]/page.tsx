@@ -119,6 +119,7 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
               </Info>
               <Info label="機關通知提送完整報告書">{formatROCShort(dbDateToISOOrNull(c.finalReportNoticeDate))}</Info>
               <Info label="機關同意備查">{formatROCShort(dbDateToISOOrNull(c.finalReportApprovedDate))}</Info>
+              {c.resultVideoDueDate && <Info label="成果影片期限">{formatROCShort(dbDateToISOOrNull(c.resultVideoDueDate))}</Info>}
               <Info label="會勘簡報上傳">
                 {c.siteVisitUploadUrl ? (
                   <a href={c.siteVisitUploadUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">

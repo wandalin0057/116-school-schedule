@@ -111,6 +111,7 @@ model SchoolCase {
   finalReportNoticeDate   DateTime?  @db.Date
   // 機關同意備查完整之規劃及分析報告書日
   finalReportApprovedDate DateTime?  @db.Date
+  resultVideoDueDate      DateTime?  @db.Date
   status                  CaseStatus @default(ACTIVE)
   notes                   String?
   createdAt               DateTime   @default(now()) @db.Timestamptz
@@ -181,6 +182,7 @@ enum TaskType {
   BEFORE_AFTER_CARDS
   FINAL_REPORT_DRAFT
   BEFORE_AFTER_CARDS_DRAFT
+  RESULT_VIDEO
 }
 
 model Task {
@@ -239,6 +241,7 @@ enum DeadlineAnchor {
   PRE_REPORT_DISPATCH
   FINAL_REPORT_NOTICE // 機關通知提送完整報告書日
   FINAL_REPORT_APPROVED // 機關同意備查日
+  RESULT_VIDEO_DUE // 成果影片期限（僅部分學校）
 }
 
 model DeadlineRule {

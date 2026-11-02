@@ -45,6 +45,7 @@ export function anchorsFromCase(c: {
   siteVisitDateTime: Date | null;
   finalReportNoticeDate?: Date | null;
   finalReportApprovedDate?: Date | null;
+  resultVideoDueDate?: Date | null;
 }): ScheduleAnchors {
   return {
     notificationDate: dbDateToISOOrNull(c.notificationDate),
@@ -52,6 +53,7 @@ export function anchorsFromCase(c: {
     siteVisitDate: c.siteVisitDateTime ? taipeiDateOf(c.siteVisitDateTime) : null,
     finalReportNoticeDate: dbDateToISOOrNull(c.finalReportNoticeDate),
     finalReportApprovedDate: dbDateToISOOrNull(c.finalReportApprovedDate),
+    resultVideoDueDate: dbDateToISOOrNull(c.resultVideoDueDate),
   };
 }
 
