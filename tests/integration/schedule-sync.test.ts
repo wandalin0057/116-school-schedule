@@ -182,19 +182,29 @@ describe.skipIf(!hasTestDb)("案件期程同步（資料庫）", () => {
     for (const t of tasks) expect(t.assignedUserId).toBe(u.id);
   });
 
-  it("成果影片為獨立工項：僅填寫成果影片期限的學校建立，期限即為該日", async () => {
+  it("成果影片為獨立項目：不屬於學校案件、不出現在案件列表，只產生一項影片工作", async () => {
+    const { createVideo, updateVideo, listVideos } = await import("@/server/videos/video-service");
+    const { listCases } = await import("@/server/cases/case-service");
+    const { listTasks } = await import("@/server/tasks/task-service");
     const u = await makeUser("pm@example.com", "ADMIN");
     const eng = await makeUser("eng@example.com");
     const { schoolCase } = await createCase(u, caseInput({ responsibleUserId: eng.id }));
     expect(await prisma.task.count({ where: { caseId: schoolCase.id, taskType: "RESULT_VIDEO" } })).toBe(0);
-    await updateCase(u, schoolCase.id, caseInput({ responsibleUserId: eng.id, resultVideoDueDate: "2026-12-15", dateChangeReason: "需製作成果影片" }));
-    const video = await dueOf(schoolCase.id, "RESULT_VIDEO");
-    expect(video.due).toBe("2026-12-15");
-    expect(video.assignedUserId).toBe(eng.id);
-    expect(video.title).toBe("提供成果影片");
-    // 清除期限後不再有期限
-    await updateCase(u, schoolCase.id, caseInput({ responsibleUserId: eng.id, resultVideoDueDate: "", dateChangeReason: "不需影片" }));
-    expect(await prisma.task.count({ where: { caseId: schoolCase.id, taskType: "RESULT_VIDEO" } })).toBe(0);
+    const video = await createVideo(u, { schoolName: "臺北市士林區雨聲國民小學", district: "士林區", responsibleUserId: eng.id, dueDate: "2026-12-15" });
+    const tasks = await prisma.task.findMany({ where: { caseId: video.id } });
+    expect(tasks.map((t) => t.taskType)).toEqual(["RESULT_VIDEO"]);
+    expect(dbDateToISO(tasks[0]!.calculatedDueDate!)).toBe("2026-12-15");
+    expect(tasks[0]!.assignedUserId).toBe(eng.id);
+    // 學校案件列表不含成果影片；同事的工作待辦與成果影片頁會看到
+    expect((await listCases(u, {})).items.map((c) => c.id)).toEqual([schoolCase.id]);
+    expect((await listTasks(eng, { pageSize: 100 })).items.some((t) => t.taskType === "RESULT_VIDEO")).toBe(true);
+    expect((await listVideos(eng)).map((v) => v.schoolName)).toEqual(["臺北市士林區雨聲國民小學"]);
+    // 改期限、換負責人
+    await updateVideo(u, video.id, { schoolName: "臺北市士林區雨聲國民小學", responsibleUserId: u.id, dueDate: "2026-12-22" });
+    const after = await dueOf(video.id, "RESULT_VIDEO");
+    expect(after.due).toBe("2026-12-22");
+    expect(after.assignedUserId).toBe(u.id);
+    await expect(createVideo(eng, { schoolName: "x國小", responsibleUserId: eng.id, dueDate: "2026-12-15" })).rejects.toThrow();
   });
 
   it("手動新增颱風假：預覽後期限自動往後順延，已完成者不變；刪除後恢復", async () => {

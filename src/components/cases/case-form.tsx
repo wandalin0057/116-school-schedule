@@ -64,8 +64,7 @@ export function CaseForm({
     v.reviewMeetingDateTime !== initial.reviewMeetingDateTime ||
     v.siteVisitDateTime !== initial.siteVisitDateTime ||
     v.finalReportNoticeDate !== initial.finalReportNoticeDate ||
-    v.finalReportApprovedDate !== initial.finalReportApprovedDate ||
-    v.resultVideoDueDate !== initial.resultVideoDueDate;
+    v.finalReportApprovedDate !== initial.finalReportApprovedDate;
 
   const handleErrors = (res: { ok: boolean; fieldErrors?: Record<string, string[] | undefined> }) => {
     if (!res.ok && res.fieldErrors) {
@@ -290,9 +289,6 @@ export function CaseForm({
             hint="收到機關同意備查完整報告書之日；起 15 個工作天內提供改善前後對照圖卡"
           >
             <Input id="finalReportApprovedDate" type="date" value={v.finalReportApprovedDate} onChange={set("finalReportApprovedDate")} />
-          </Field>
-          <Field label="成果影片期限" name="resultVideoDueDate" error={errors.resultVideoDueDate} hint="僅需製作成果影片的學校填寫；填寫後建立「提供成果影片」工作，期限即為此日">
-            <Input id="resultVideoDueDate" type="date" value={v.resultVideoDueDate} onChange={set("resultVideoDueDate")} />
           </Field>
           {mode === "edit" && datesChanged && (
             <Field label="日期異動原因" name="dateChangeReason" error={errors.dateChangeReason} hint="將記錄於異動歷史">

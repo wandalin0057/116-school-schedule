@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { CaseForm } from "@/components/cases/case-form";
 import { caseToFormValues } from "@/components/cases/case-form-values";
 import { PageHeader } from "@/components/common/page-header";
@@ -19,6 +19,7 @@ export default async function EditCasePage({ params }: { params: Promise<{ id: s
     listUsers(),
     listProjectNames(),
   ]);
+  if (c.caseType === "RESULT_VIDEO") redirect("/videos");
   return (
     <>
       <PageHeader title={`編輯案件：${c.schoolName}`} description={c.projectCode} />

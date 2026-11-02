@@ -19,7 +19,6 @@ type CaseRow = {
   siteVisitUploadUrl: string | null;
   finalReportNoticeDate?: Date | null;
   finalReportApprovedDate?: Date | null;
-  resultVideoDueDate?: Date | null;
   status: string;
   notes: string | null;
 };
@@ -48,7 +47,6 @@ export function caseToFormValues(
     siteVisitUploadUrl: c?.siteVisitUploadUrl ?? "",
     finalReportNoticeDate: dbDateToISOOrNull(c?.finalReportNoticeDate) ?? "",
     finalReportApprovedDate: dbDateToISOOrNull(c?.finalReportApprovedDate) ?? "",
-    resultVideoDueDate: dbDateToISOOrNull(c?.resultVideoDueDate) ?? "",
     status: c?.status ?? "ACTIVE",
     notes: c?.notes ?? "",
     dateChangeReason: "",

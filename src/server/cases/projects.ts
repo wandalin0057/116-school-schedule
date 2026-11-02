@@ -21,7 +21,7 @@ export function shortProjectLabel(name: string): string {
 /** 可選擇之計畫清單（預設計畫＋資料庫中已使用者） */
 export async function listProjectNames(user?: AuthUser): Promise<string[]> {
   const rows = await prisma.schoolCase.findMany({
-    where: user ? caseAccessWhere(user) : {},
+    where: { AND: [user ? caseAccessWhere(user) : {}, { caseType: "SCHOOL_ZONE" }] },
     distinct: ["projectName"],
     select: { projectName: true },
   });
@@ -30,6 +30,6 @@ export async function listProjectNames(user?: AuthUser): Promise<string[]> {
 
 /** 各計畫案件數（案件列表分頁使用） */
 export async function countCasesByProject(user: AuthUser) {
-  const rows = await prisma.schoolCase.groupBy({ by: ["projectName"], where: caseAccessWhere(user), _count: { _all: true } });
+  const rows = await prisma.schoolCase.groupBy({ by: ["projectName"], where: { AND: [caseAccessWhere(user), { caseType: "SCHOOL_ZONE" }] }, _count: { _all: true } });
   return new Map(rows.map((r) => [r.projectName, r._count._all]));
 }

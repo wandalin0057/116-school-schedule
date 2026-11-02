@@ -25,7 +25,7 @@ export async function getDashboard(user: AuthUser, opts: { mineOnly?: boolean; n
 
   if (opts.projectName) scope.push({ schoolCase: { projectName: opts.projectName } });
 
-  const caseScope: Prisma.SchoolCaseWhereInput[] = [caseAccessWhere(user)];
+  const caseScope: Prisma.SchoolCaseWhereInput[] = [caseAccessWhere(user), { caseType: "SCHOOL_ZONE" }];
   if (opts.projectName) caseScope.push({ projectName: opts.projectName });
   if (opts.mineOnly) caseScope.push({ OR: [{ responsibleUserId: user.id }, { members: { some: { userId: user.id } } }] });
 

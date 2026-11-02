@@ -85,7 +85,7 @@ async function parseFiles(files: ImportFile[]): Promise<ScheduleRow[]> {
 
 export async function previewScheduleImport(files: ImportFile[]): Promise<PreviewRow[]> {
   const rows = await parseFiles(files);
-  const existing = await prisma.schoolCase.findMany({ select: { id: true, projectCode: true, projectName: true, schoolName: true } });
+  const existing = await prisma.schoolCase.findMany({ where: { caseType: "SCHOOL_ZONE" }, select: { id: true, projectCode: true, projectName: true, schoolName: true } });
   return rows.map((r) => {
     const projectName = projectNameForYear(r.rocYear);
     const hit = existing.find((e) => e.projectName === projectName && normalizeSchool(e.schoolName) === normalizeSchool(r.schoolName));

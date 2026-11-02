@@ -80,7 +80,6 @@ function toDbFields(p: ResolvedCase) {
     siteVisitUploadUrl: p.siteVisitUploadUrl,
     finalReportNoticeDate: p.finalReportNoticeDate ? isoToDbDate(p.finalReportNoticeDate) : null,
     finalReportApprovedDate: p.finalReportApprovedDate ? isoToDbDate(p.finalReportApprovedDate) : null,
-    resultVideoDueDate: p.resultVideoDueDate ? isoToDbDate(p.resultVideoDueDate) : null,
     status: p.status as CaseStatus,
     notes: p.notes,
   };
@@ -164,7 +163,6 @@ export async function previewCaseUpdate(user: AuthUser, caseId: string, input: C
     siteVisitDate: p.siteVisitDateTime ? taipeiDateOf(parseTaipeiDateTime(p.siteVisitDateTime)) : null,
     finalReportNoticeDate: p.finalReportNoticeDate as ISODate | null,
     finalReportApprovedDate: p.finalReportApprovedDate as ISODate | null,
-    resultVideoDueDate: p.resultVideoDueDate as ISODate | null,
   };
   return computeCaseScheduleChanges(caseId, anchors);
 }
@@ -192,8 +190,7 @@ export async function updateCase(user: AuthUser, caseId: string, input: CaseInpu
     "reviewMeetingDateTime" in fieldDiff ||
     "siteVisitDateTime" in fieldDiff ||
     "finalReportNoticeDate" in fieldDiff ||
-    "finalReportApprovedDate" in fieldDiff ||
-    "resultVideoDueDate" in fieldDiff;
+    "finalReportApprovedDate" in fieldDiff;
 
   return prisma.$transaction(
     async (tx) => {
@@ -221,10 +218,6 @@ export async function updateCase(user: AuthUser, caseId: string, input: CaseInpu
         reason: p.dateChangeReason ?? (datesChanged ? "案件日期異動" : "案件資料更新"),
         db: tx,
       });
-      // 成果影片為選擇性工項：清除期限＝此校不需影片，移除尚未完成的影片工作
-      if (!updated.resultVideoDueDate) {
-        await tx.task.deleteMany({ where: { caseId, taskType: "RESULT_VIDEO", status: { not: "COMPLETED" } } });
-      }
       if (Object.keys(fieldDiff).length) {
         await writeAudit(
           {
@@ -266,7 +259,7 @@ const CASE_SORT_FIELDS = ["projectCode", "schoolName", "district", "notification
 export async function listCases(user: AuthUser, query: CaseListQuery) {
   const pageSize = Math.min(Math.max(query.pageSize ?? 20, 5), 100);
   const page = Math.max(query.page ?? 1, 1);
-  const filters: Prisma.SchoolCaseWhereInput[] = [caseAccessWhere(user)];
+  const filters: Prisma.SchoolCaseWhereInput[] = [caseAccessWhere(user), { caseType: "SCHOOL_ZONE" }];
   if (query.q) {
     const q = query.q.trim();
     filters.push({

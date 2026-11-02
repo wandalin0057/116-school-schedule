@@ -240,6 +240,31 @@ async function main() {
   const { assignDraftTasksToPm } = await import("../src/server/schedule/task-sync");
   const n = await assignDraftTasksToPm();
   if (n) console.log(`✓ ${n} 項創稿工作改由專案經理負責`);
+  await moveVideosOutOfSchoolCases();
+}
+
+/** 先前於學校案件填寫之「成果影片期限」改為獨立的成果影片項目（工作與完成狀態一併移過去） */
+async function moveVideosOutOfSchoolCases() {
+  const legacy = await prisma.schoolCase.findMany({ where: { caseType: "SCHOOL_ZONE", OR: [{ resultVideoDueDate: { not: null } }, { tasks: { some: { taskType: "RESULT_VIDEO" } } }] } });
+  if (!legacy.length) return;
+  const { VIDEO_PROJECT_NAME } = await import("../src/server/videos/video-service");
+  let seq = (await prisma.schoolCase.count({ where: { projectCode: { startsWith: "VIDEO-" } } })) + 1;
+  for (const c of legacy) {
+    await prisma.$transaction(async (tx) => {
+      if (c.resultVideoDueDate) {
+        let code = `VIDEO-${String(seq++).padStart(3, "0")}`;
+        while (await tx.schoolCase.findUnique({ where: { projectCode: code } })) code = `VIDEO-${String(seq++).padStart(3, "0")}`;
+        const video = await tx.schoolCase.create({
+          data: { caseType: "RESULT_VIDEO", projectCode: code, projectName: VIDEO_PROJECT_NAME, schoolName: c.schoolName, district: c.district, responsibleUserId: c.responsibleUserId, resultVideoDueDate: c.resultVideoDueDate },
+        });
+        await tx.task.updateMany({ where: { caseId: c.id, taskType: "RESULT_VIDEO" }, data: { caseId: video.id } });
+      } else {
+        await tx.task.deleteMany({ where: { caseId: c.id, taskType: "RESULT_VIDEO", status: { not: "COMPLETED" } } });
+      }
+      await tx.schoolCase.update({ where: { id: c.id }, data: { resultVideoDueDate: null } });
+    });
+  }
+  console.log(`✓ ${legacy.length} 筆學校案件的成果影片已移至「成果影片」`);
 }
 
 main()

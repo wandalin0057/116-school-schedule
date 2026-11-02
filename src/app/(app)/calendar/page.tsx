@@ -88,7 +88,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
     getCalendarEvents(user, from, to, filter),
     listUsers(),
     prisma.schoolCase.findMany({
-      where: { AND: [caseAccessWhere(user), sp.project ? { projectName: sp.project } : {}] },
+      where: { AND: [caseAccessWhere(user), { caseType: "SCHOOL_ZONE" }, sp.project ? { projectName: sp.project } : {}] },
       select: { id: true, schoolName: true },
       orderBy: { schoolName: "asc" },
     }),

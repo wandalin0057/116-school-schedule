@@ -1,6 +1,6 @@
 import { CalendarClock, ExternalLink, Pencil } from "lucide-react";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { CreateDocumentButtons, CreateEmailButtons, EventHeldButton, MemberManager } from "@/components/cases/case-detail-client";
 import { DeleteCaseButton } from "@/components/cases/delete-case-button";
 import { PageHeader } from "@/components/common/page-header";
@@ -41,6 +41,8 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
   const user = await requireUser();
   if (!(await canAccessCase(user, id, "view"))) notFound();
   const [c, bds, users, canEdit] = await Promise.all([getCaseDetail(user, id), loadBusinessDayService(), listUsers(), canAccessCase(user, id, "edit")]);
+  // 成果影片於獨立頁面管理
+  if (c.caseType === "RESULT_VIDEO") redirect("/videos");
   const today = taipeiToday();
   const order: string[] = TASK_TIMELINE_ORDER;
   // 創稿工作僅管理員可見
@@ -119,7 +121,6 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
               </Info>
               <Info label="機關通知提送完整報告書">{formatROCShort(dbDateToISOOrNull(c.finalReportNoticeDate))}</Info>
               <Info label="機關同意備查">{formatROCShort(dbDateToISOOrNull(c.finalReportApprovedDate))}</Info>
-              {c.resultVideoDueDate && <Info label="成果影片期限">{formatROCShort(dbDateToISOOrNull(c.resultVideoDueDate))}</Info>}
               <Info label="會勘簡報上傳">
                 {c.siteVisitUploadUrl ? (
                   <a href={c.siteVisitUploadUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">

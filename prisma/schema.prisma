@@ -82,6 +82,12 @@ model Session {
 
 // ───────────────────────── 學校案件 ─────────────────────────
 
+// 學校案件（通學區規劃）／成果影片（獨立項目，學校可能與通學區案件不同）
+enum CaseType {
+  SCHOOL_ZONE
+  RESULT_VIDEO
+}
+
 enum CaseStatus {
   ACTIVE // 執行中
   ON_HOLD // 暫停
@@ -91,6 +97,7 @@ enum CaseStatus {
 
 model SchoolCase {
   id                      String     @id @default(cuid())
+  caseType                CaseType   @default(SCHOOL_ZONE)
   projectCode             String     @unique
   projectName             String     @default("115年度臺北市通學區規劃分析案")
   schoolName              String
@@ -132,6 +139,7 @@ model SchoolCase {
   @@index([notificationDate])
   @@index([reviewMeetingDateTime])
   @@index([siteVisitDateTime])
+  @@index([caseType])
 }
 
 enum CaseMemberRole {
