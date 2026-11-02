@@ -6,6 +6,7 @@ export const TASK_TYPE_LABELS: Record<TaskType, string> = {
   FINAL_REPORT_DRAFT: "完整規劃及分析報告書創稿",
   BEFORE_AFTER_CARDS_DRAFT: "改善前後對照圖卡創稿",
   RESULT_VIDEO: "提供成果影片",
+  RESULT_VIDEO_DRAFT: "成果影片創稿",
   PRE_REPORT_PROVIDE: "提供事前規劃報告書",
   PRE_REPORT_DRAFT: "事前規劃報告書創稿",
   PRE_REPORT_DISPATCH: "事前規劃報告書提供圖說",
@@ -47,6 +48,7 @@ export const TASK_CATEGORY: Record<TaskType, TaskCategory> = {
   FINAL_REPORT_DRAFT: "DRAFT",
   BEFORE_AFTER_CARDS_DRAFT: "DRAFT",
   RESULT_VIDEO: "VIDEO",
+  RESULT_VIDEO_DRAFT: "DRAFT",
   PRE_REPORT_PROVIDE: "DISPATCH",
   PRE_REPORT_DRAFT: "DRAFT",
   PRE_REPORT_DISPATCH: "DISPATCH",
@@ -67,10 +69,11 @@ export const TASK_TYPES_BY_CATEGORY = (cat: TaskCategory): TaskType[] =>
 
 /** 工作類型對應之公文類型 */
 /** 可「產生公文」的工作：只有創稿（提供報告書／修正圖說不需公文） */
-export const TASK_DOCUMENT_TYPE: Partial<Record<TaskType, "PRE_REPORT" | "REVIEW_DRAWING" | "SITE_VISIT_DRAWING">> = {
+export const TASK_DOCUMENT_TYPE: Partial<Record<TaskType, "PRE_REPORT" | "REVIEW_DRAWING" | "SITE_VISIT_DRAWING" | "RESULT_VIDEO">> = {
   PRE_REPORT_DRAFT: "PRE_REPORT",
   REVIEW_DRAWING_DRAFT: "REVIEW_DRAWING",
   SITE_VISIT_DRAWING_DRAFT: "SITE_VISIT_DRAWING",
+  RESULT_VIDEO_DRAFT: "RESULT_VIDEO",
 };
 
 /** 工作類型對應之 Email 範本 */
@@ -125,6 +128,7 @@ export const TASK_TIMELINE_ORDER: TaskType[] = [
   "FINAL_REPORT_SUBMIT",
   "BEFORE_AFTER_CARDS_DRAFT",
   "BEFORE_AFTER_CARDS",
+  "RESULT_VIDEO_DRAFT",
   "RESULT_VIDEO",
 ];
 
@@ -138,6 +142,7 @@ export const ADMIN_ONLY_TASKS: TaskType[] = [
   "SITE_VISIT_DRAWING_DRAFT",
   "FINAL_REPORT_DRAFT",
   "BEFORE_AFTER_CARDS_DRAFT",
+  "RESULT_VIDEO_DRAFT",
 ];
 
 export const OPEN_TASK_STATUSES: TaskStatus[] = ["NOT_STARTED", "IN_PROGRESS", "ON_HOLD"];

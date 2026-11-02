@@ -9,11 +9,11 @@ import { Input, Select, Textarea } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { TAIPEI_DISTRICTS } from "@/server/cases/case-schema";
 
-export type VideoFormValues = { schoolName: string; district: string; responsibleUserId: string; dueDate: string; notes: string };
+export type VideoFormValues = { projectName: string; schoolName: string; district: string; responsibleUserId: string; dueDate: string; notes: string };
 type UserOption = { id: string; name: string; email: string };
 
-export function VideoDialog({ users, video }: { users: UserOption[]; video?: { id: string } & VideoFormValues }) {
-  const empty: VideoFormValues = { schoolName: "", district: "", responsibleUserId: "", dueDate: "", notes: "" };
+export function VideoDialog({ users, projects, video }: { users: UserOption[]; projects: string[]; video?: { id: string } & VideoFormValues }) {
+  const empty: VideoFormValues = { projectName: projects[0] ?? "", schoolName: "", district: "", responsibleUserId: "", dueDate: "", notes: "" };
   const [open, setOpen] = useState(false);
   const [v, setV] = useState<VideoFormValues>(video ?? empty);
   const { run, pending } = useAction();
@@ -43,7 +43,7 @@ export function VideoDialog({ users, video }: { users: UserOption[]; video?: { i
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{video ? "編輯成果影片" : "新增成果影片"}</DialogTitle>
-          <DialogDescription>成果影片獨立於學校案件，期限到期前會寄每日提醒給負責人。</DialogDescription>
+          <DialogDescription>成果影片獨立於學校案件。期限前一個工作天會建立「成果影片創稿」（發文，只提醒您）；期限前會寄每日提醒給負責人。</DialogDescription>
         </DialogHeader>
         <form
           id={`video-form-${id}`}
@@ -53,6 +53,16 @@ export function VideoDialog({ users, video }: { users: UserOption[]; video?: { i
             void run(() => (video ? updateVideoAction(video.id, v) : createVideoAction(v)), { onSuccess: () => setOpen(false) });
           }}
         >
+          <div className="space-y-1.5">
+            <Label htmlFor={`vd-project-${id}`}>計畫名稱</Label>
+            <Select id={`vd-project-${id}`} value={v.projectName} onChange={set("projectName")}>
+              {[...new Set([...projects, v.projectName].filter(Boolean))].map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </Select>
+          </div>
           <div className="space-y-1.5">
             <Label htmlFor={`vd-school-${id}`}>學校名稱</Label>
             <Input id={`vd-school-${id}`} value={v.schoolName} onChange={set("schoolName")} required placeholder="例如：臺北市大安區仁愛國民小學" />
@@ -118,7 +128,7 @@ export function DeleteVideoButton({ id, label }: { id: string; label: string }) 
       <DialogContent>
         <DialogHeader>
           <DialogTitle>刪除成果影片</DialogTitle>
-          <DialogDescription>確定刪除「{label}」？此項目的工作與提醒會一併刪除，無法復原。</DialogDescription>
+          <DialogDescription>確定刪除「{label}」？此項目的工作、提醒與成果影片公文會一併刪除，無法復原。</DialogDescription>
         </DialogHeader>
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>

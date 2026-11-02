@@ -15,6 +15,8 @@ import { syncCaseTasks } from "@/server/schedule/task-sync";
 export const VIDEO_PROJECT_NAME = "成果影片";
 
 const videoSchema = z.object({
+  /** 所屬計畫（公文主旨「檢送「{projectName}」…」使用） */
+  projectName: z.string().trim().max(200).optional().transform((v) => v || VIDEO_PROJECT_NAME),
   schoolName: z.string().trim().min(1, "請輸入學校名稱").max(100),
   district: z.string().trim().max(20).optional().transform((v) => v || null),
   responsibleUserId: z.string().trim().min(1, "請選擇負責人"),
@@ -45,11 +47,15 @@ export async function listVideos(user: AuthUser) {
     where: { AND: [caseAccessWhere(user), { caseType: "RESULT_VIDEO" }] },
     include: {
       responsibleUser: { select: { id: true, name: true } },
-      tasks: { where: { taskType: "RESULT_VIDEO" }, select: { id: true, status: true, calculatedDueDate: true, overrideDueDate: true, actualCompletedAt: true } },
+      tasks: {
+        where: { taskType: { in: user.role === "ADMIN" ? ["RESULT_VIDEO", "RESULT_VIDEO_DRAFT"] : ["RESULT_VIDEO"] } },
+        select: { id: true, taskType: true, status: true, calculatedDueDate: true, overrideDueDate: true, actualCompletedAt: true },
+      },
+      documents: { select: { id: true, status: true }, orderBy: { createdAt: "desc" } },
     },
   });
   return rows
-    .map((r) => ({ ...r, task: r.tasks[0] ?? null }))
+    .map((r) => ({ ...r, task: r.tasks.find((t) => t.taskType === "RESULT_VIDEO") ?? null, draft: r.tasks.find((t) => t.taskType === "RESULT_VIDEO_DRAFT") ?? null }))
     .sort((a, b) => (a.resultVideoDueDate?.getTime() ?? Infinity) - (b.resultVideoDueDate?.getTime() ?? Infinity));
 }
 
@@ -63,7 +69,7 @@ export async function createVideo(user: AuthUser, input: VideoInput) {
       data: {
         caseType: "RESULT_VIDEO",
         projectCode,
-        projectName: VIDEO_PROJECT_NAME,
+        projectName: p.projectName,
         schoolName: p.schoolName,
         district: p.district,
         responsibleUserId: p.responsibleUserId,
@@ -86,10 +92,10 @@ export async function updateVideo(user: AuthUser, id: string, input: VideoInput 
   return prisma.$transaction(async (tx) => {
     const c = await tx.schoolCase.update({
       where: { id },
-      data: { schoolName: p.schoolName, district: p.district, responsibleUserId: p.responsibleUserId, resultVideoDueDate: isoToDbDate(p.dueDate), notes: p.notes },
+      data: { projectName: p.projectName, schoolName: p.schoolName, district: p.district, responsibleUserId: p.responsibleUserId, resultVideoDueDate: isoToDbDate(p.dueDate), notes: p.notes },
     });
     await syncCaseTasks(id, { actorId: user.id, source: "CASE_DATE_CHANGE", reason: input.reason?.trim() || "更新成果影片", db: tx });
-    await tx.task.updateMany({ where: { caseId: id, status: { not: "COMPLETED" } }, data: { assignedUserId: p.responsibleUserId } });
+    await tx.task.updateMany({ where: { caseId: id, taskType: "RESULT_VIDEO", status: { not: "COMPLETED" } }, data: { assignedUserId: p.responsibleUserId } });
     await writeAudit({ actorId: user.id, action: "CASE_UPDATE", entityType: "SchoolCase", entityId: id, summary: `更新成果影片 ${p.schoolName}（期限 ${p.dueDate}）` }, tx);
     return c;
   });

@@ -59,6 +59,15 @@ export const DEFAULT_DEADLINE_RULES: DeadlineRuleDef[] = [
     sortOrder: 150,
   },
   {
+    taskType: "RESULT_VIDEO_DRAFT",
+    title: "成果影片創稿",
+    description: "成果影片期限的前一個工作天，創稿發文",
+    anchor: "RESULT_VIDEO_DUE",
+    offsetBusinessDays: -1,
+    enabled: true,
+    sortOrder: 145,
+  },
+  {
     taskType: "PRE_REPORT_PROVIDE",
     title: "提供事前規劃報告書",
     description: "機關通知日（D0）後第 12 個工作天，由負責同事提供報告書",

@@ -88,6 +88,7 @@ export const DOCUMENT_TYPE_LABELS = {
   PRE_REPORT: "事前規劃及分析報告書",
   REVIEW_DRAWING: "審查會議後修正圖說",
   SITE_VISIT_DRAWING: "會勘後修正圖說",
+  RESULT_VIDEO: "成果影片",
 } as const;
 
 export const DOCUMENT_STATUS_LABELS = {

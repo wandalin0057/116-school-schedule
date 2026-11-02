@@ -191,19 +191,33 @@ describe.skipIf(!hasTestDb)("案件期程同步（資料庫）", () => {
     const { schoolCase } = await createCase(u, caseInput({ responsibleUserId: eng.id }));
     expect(await prisma.task.count({ where: { caseId: schoolCase.id, taskType: "RESULT_VIDEO" } })).toBe(0);
     const video = await createVideo(u, { schoolName: "臺北市士林區雨聲國民小學", district: "士林區", responsibleUserId: eng.id, dueDate: "2026-12-15" });
-    const tasks = await prisma.task.findMany({ where: { caseId: video.id } });
-    expect(tasks.map((t) => t.taskType)).toEqual(["RESULT_VIDEO"]);
-    expect(dbDateToISO(tasks[0]!.calculatedDueDate!)).toBe("2026-12-15");
-    expect(tasks[0]!.assignedUserId).toBe(eng.id);
+    const tasks = await prisma.task.findMany({ where: { caseId: video.id }, orderBy: { taskType: "asc" } });
+    expect(tasks.map((t) => t.taskType).sort()).toEqual(["RESULT_VIDEO", "RESULT_VIDEO_DRAFT"]);
+    const videoTask = tasks.find((t) => t.taskType === "RESULT_VIDEO")!;
+    const draftTask = tasks.find((t) => t.taskType === "RESULT_VIDEO_DRAFT")!;
+    expect(dbDateToISO(videoTask.calculatedDueDate!)).toBe("2026-12-15");
+    expect(videoTask.assignedUserId).toBe(eng.id);
+    // 創稿發文：期限前一個工作天，由專案經理負責、同事看不到
+    expect(dbDateToISO(draftTask.calculatedDueDate!)).toBe("2026-12-14");
+    expect(draftTask.assignedUserId).toBe(u.id);
+    const { createDocumentDraft } = await import("@/server/documents/document-service");
+    const { decryptSecret } = await import("@/lib/crypto");
+    const doc = await createDocumentDraft(u, { caseId: video.id, documentType: "RESULT_VIDEO" });
+    expect(doc.taskId).toBe(draftTask.id);
+    expect(doc.subject).toContain("雨聲國民小學成果影片");
+    expect(decryptSecret(doc.attachmentPasswordEnc!)).toBe("CD80@1215");
     // 學校案件列表不含成果影片；同事的工作待辦與成果影片頁會看到
     expect((await listCases(u, {})).items.map((c) => c.id)).toEqual([schoolCase.id]);
-    expect((await listTasks(eng, { pageSize: 100 })).items.some((t) => t.taskType === "RESULT_VIDEO")).toBe(true);
+    const engTypes = (await listTasks(eng, { pageSize: 100 })).items.map((t) => t.taskType);
+    expect(engTypes).toContain("RESULT_VIDEO");
+    expect(engTypes).not.toContain("RESULT_VIDEO_DRAFT");
     expect((await listVideos(eng)).map((v) => v.schoolName)).toEqual(["臺北市士林區雨聲國民小學"]);
     // 改期限、換負責人
     await updateVideo(u, video.id, { schoolName: "臺北市士林區雨聲國民小學", responsibleUserId: u.id, dueDate: "2026-12-22" });
     const after = await dueOf(video.id, "RESULT_VIDEO");
     expect(after.due).toBe("2026-12-22");
     expect(after.assignedUserId).toBe(u.id);
+    expect((await dueOf(video.id, "RESULT_VIDEO_DRAFT")).due).toBe("2026-12-21");
     await expect(createVideo(eng, { schoolName: "x國小", responsibleUserId: eng.id, dueDate: "2026-12-15" })).rejects.toThrow();
   });
 

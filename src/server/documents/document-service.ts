@@ -19,11 +19,13 @@ const DRAFT_TASK: Record<DocumentType, TaskType> = {
   PRE_REPORT: "PRE_REPORT_DRAFT",
   REVIEW_DRAWING: "REVIEW_DRAWING_DRAFT",
   SITE_VISIT_DRAWING: "SITE_VISIT_DRAWING_DRAFT",
+  RESULT_VIDEO: "RESULT_VIDEO_DRAFT",
 };
 const DISPATCH_TASK: Record<DocumentType, TaskType> = {
   PRE_REPORT: "PRE_REPORT_DISPATCH",
   REVIEW_DRAWING: "REVIEW_DRAWING_DISPATCH",
   SITE_VISIT_DRAWING: "SITE_VISIT_DRAWING_DISPATCH",
+  RESULT_VIDEO: "RESULT_VIDEO",
 };
 
 /** 下載密碼不以明文存入主旨／說明，保留變數，於預覽與匯出時才代入 */
@@ -246,7 +248,7 @@ export interface DocumentListQuery {
 export async function listDocuments(user: AuthUser, query: DocumentListQuery) {
   const filters: Prisma.OfficialDocumentWhereInput[] = [{ schoolCase: caseAccessWhere(user) }];
   if (query.status && ["DRAFT", "DRAFTED", "DISPATCHED", "CANCELLED"].includes(query.status)) filters.push({ status: query.status as DocumentStatus });
-  if (query.documentType && ["PRE_REPORT", "REVIEW_DRAWING", "SITE_VISIT_DRAWING"].includes(query.documentType)) filters.push({ documentType: query.documentType as DocumentType });
+  if (query.documentType && ["PRE_REPORT", "REVIEW_DRAWING", "SITE_VISIT_DRAWING", "RESULT_VIDEO"].includes(query.documentType)) filters.push({ documentType: query.documentType as DocumentType });
   if (query.caseId) filters.push({ caseId: query.caseId });
   if (query.q) {
     const q = query.q.trim();
