@@ -182,43 +182,59 @@ describe.skipIf(!hasTestDb)("案件期程同步（資料庫）", () => {
     for (const t of tasks) expect(t.assignedUserId).toBe(u.id);
   });
 
-  it("成果影片為獨立項目：不屬於學校案件、不出現在案件列表，只產生一項影片工作", async () => {
+  it("成果影片與成效分析報告書為獨立項目：依機關通知日推算繳交期限與前一工作天創稿，不屬於學校案件", async () => {
     const { createVideo, updateVideo, listVideos } = await import("@/server/videos/video-service");
     const { listCases } = await import("@/server/cases/case-service");
     const { listTasks } = await import("@/server/tasks/task-service");
+    const { loadBusinessDayService } = await import("@/server/business-days/calendar-repository");
+    const { createDocumentDraft } = await import("@/server/documents/document-service");
+    const { decryptSecret } = await import("@/lib/crypto");
+    const bds = await loadBusinessDayService();
+    const plus = (d: string, n: number) => bds.addBusinessDays(d as never, n).date;
     const u = await makeUser("pm@example.com", "ADMIN");
     const eng = await makeUser("eng@example.com");
     const { schoolCase } = await createCase(u, caseInput({ responsibleUserId: eng.id }));
-    expect(await prisma.task.count({ where: { caseId: schoolCase.id, taskType: "RESULT_VIDEO" } })).toBe(0);
-    const video = await createVideo(u, { schoolName: "臺北市士林區雨聲國民小學", district: "士林區", responsibleUserId: eng.id, dueDate: "2026-12-15" });
-    const tasks = await prisma.task.findMany({ where: { caseId: video.id }, orderBy: { taskType: "asc" } });
-    expect(tasks.map((t) => t.taskType).sort()).toEqual(["RESULT_VIDEO", "RESULT_VIDEO_DRAFT"]);
-    const videoTask = tasks.find((t) => t.taskType === "RESULT_VIDEO")!;
-    const draftTask = tasks.find((t) => t.taskType === "RESULT_VIDEO_DRAFT")!;
-    expect(dbDateToISO(videoTask.calculatedDueDate!)).toBe("2026-12-15");
-    expect(videoTask.assignedUserId).toBe(eng.id);
-    // 創稿發文：期限前一個工作天，由專案經理負責、同事看不到
-    expect(dbDateToISO(draftTask.calculatedDueDate!)).toBe("2026-12-14");
-    expect(draftTask.assignedUserId).toBe(u.id);
-    const { createDocumentDraft } = await import("@/server/documents/document-service");
-    const { decryptSecret } = await import("@/lib/crypto");
+
+    // 尚未通知：不產生工作
+    const video = await createVideo(u, { schoolName: "臺北市士林區雨聲國民小學", district: "士林區", responsibleUserId: eng.id });
+    expect(await prisma.task.count({ where: { caseId: video.id } })).toBe(0);
+
+    // 機關通知 → 3 分鐘影片：次日起第 20 個工作天；創稿：前一個工作天（專案經理）
+    await updateVideo(u, video.id, { schoolName: "臺北市士林區雨聲國民小學", responsibleUserId: eng.id, noticeDate: "2026-11-02" });
+    const main = await dueOf(video.id, "RESULT_VIDEO");
+    const draft = await dueOf(video.id, "RESULT_VIDEO_DRAFT");
+    expect(main.due).toBe(plus("2026-11-02", 20));
+    expect(draft.due).toBe(plus("2026-11-02", 19));
+    expect(main.assignedUserId).toBe(eng.id);
+    expect(draft.assignedUserId).toBe(u.id);
+    expect(await prisma.task.count({ where: { caseId: video.id, taskType: { in: ["RESULT_VIDEO_SHORT", "RESULT_VIDEO_SHORT_DRAFT"] } } })).toBe(0);
+
+    // 審核同意 → 15 秒版本：次日起第 10 個工作天；創稿第 9 個工作天
+    await updateVideo(u, video.id, { schoolName: "臺北市士林區雨聲國民小學", responsibleUserId: eng.id, noticeDate: "2026-11-02", approvedDate: "2026-12-07" });
+    expect((await dueOf(video.id, "RESULT_VIDEO_SHORT")).due).toBe(plus("2026-12-07", 10));
+    expect((await dueOf(video.id, "RESULT_VIDEO_SHORT_DRAFT")).due).toBe(plus("2026-12-07", 9));
+
+    // 公文：主旨與下載密碼（CD80@＋繳交日月日）
     const doc = await createDocumentDraft(u, { caseId: video.id, documentType: "RESULT_VIDEO" });
-    expect(doc.taskId).toBe(draftTask.id);
+    expect(doc.taskId).toBe(draft.id);
     expect(doc.subject).toContain("雨聲國民小學成果影片");
-    expect(decryptSecret(doc.attachmentPasswordEnc!)).toBe("CD80@1215");
-    // 學校案件列表不含成果影片；同事的工作待辦與成果影片頁會看到
+    expect(decryptSecret(doc.attachmentPasswordEnc!)).toBe(`CD80@${main.due!.slice(5, 7)}${main.due!.slice(8, 10)}`);
+
+    // 成效分析及成果報告書：通知次日起第 18 個工作天，創稿第 17 個工作天；未填學校記為「全案」
+    const report = await createVideo(u, { responsibleUserId: eng.id, noticeDate: "2026-11-02" }, "RESULT_REPORT");
+    expect(report.schoolName).toBe("全案");
+    expect((await dueOf(report.id, "RESULT_REPORT")).due).toBe(plus("2026-11-02", 18));
+    expect((await dueOf(report.id, "RESULT_REPORT_DRAFT")).due).toBe(plus("2026-11-02", 17));
+    expect(await prisma.task.count({ where: { caseId: report.id } })).toBe(2);
+
+    // 學校案件列表不含；同事看得到繳交工作、看不到創稿
     expect((await listCases(u, {})).items.map((c) => c.id)).toEqual([schoolCase.id]);
     const engTypes = (await listTasks(eng, { pageSize: 100 })).items.map((t) => t.taskType);
-    expect(engTypes).toContain("RESULT_VIDEO");
-    expect(engTypes).not.toContain("RESULT_VIDEO_DRAFT");
+    expect(engTypes).toEqual(expect.arrayContaining(["RESULT_VIDEO", "RESULT_VIDEO_SHORT", "RESULT_REPORT"]));
+    expect(engTypes.some((t) => t.endsWith("_DRAFT"))).toBe(false);
     expect((await listVideos(eng)).map((v) => v.schoolName)).toEqual(["臺北市士林區雨聲國民小學"]);
-    // 改期限、換負責人
-    await updateVideo(u, video.id, { schoolName: "臺北市士林區雨聲國民小學", responsibleUserId: u.id, dueDate: "2026-12-22" });
-    const after = await dueOf(video.id, "RESULT_VIDEO");
-    expect(after.due).toBe("2026-12-22");
-    expect(after.assignedUserId).toBe(u.id);
-    expect((await dueOf(video.id, "RESULT_VIDEO_DRAFT")).due).toBe("2026-12-21");
-    await expect(createVideo(eng, { schoolName: "x國小", responsibleUserId: eng.id, dueDate: "2026-12-15" })).rejects.toThrow();
+    expect((await listVideos(u, "RESULT_REPORT")).map((v) => v.stages.map((s) => !!s.task && !!s.draft))).toEqual([[true]]);
+    await expect(createVideo(eng, { schoolName: "x國小", responsibleUserId: eng.id })).rejects.toThrow();
   });
 
   it("手動新增颱風假：預覽後期限自動往後順延，已完成者不變；刪除後恢復", async () => {

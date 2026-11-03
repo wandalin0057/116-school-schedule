@@ -6,29 +6,59 @@ import { assertAdmin, caseAccessWhere } from "@/server/auth/permissions";
 import type { AuthUser } from "@/server/auth/types";
 import { NotFoundError, ValidationError } from "@/server/errors";
 import { syncCaseTasks } from "@/server/schedule/task-sync";
+import { STANDALONE_KINDS, type StandaloneKind } from "./standalone-kinds";
 
 /**
- * 成果影片：獨立於通學區學校案件的項目（製作影片的學校可能與通學區案件不同）。
- * 資料存於 SchoolCase（caseType = RESULT_VIDEO），只產生一項「提供成果影片」工作，
- * 因此可共用工作待辦、行事曆與每日提醒，但不會出現在學校案件列表與儀表板案件進度中。
+ * 獨立項目（成果影片、成效分析及成果報告書）：不屬於通學區學校案件（學校可能不同）。
+ * 資料存於 SchoolCase（caseType = RESULT_VIDEO／RESULT_REPORT），依機關通知日推算繳交工作與前一工作天之創稿，
+ * 因此可共用工作待辦、行事曆、公文與每日提醒，但不會出現在學校案件列表與儀表板案件進度中。
  */
 export const VIDEO_PROJECT_NAME = "成果影片";
+/** 全案報告未填學校時，名稱記為「全案」（行事曆、提醒信與公文主旨使用） */
+const WHOLE_PROJECT = "全案";
 
-const videoSchema = z.object({
+const optionalDate = z
+  .string()
+  .trim()
+  .optional()
+  .refine((v) => !v || isISODate(v), "日期格式錯誤")
+  .transform((v) => v || null);
+
+const schema = z.object({
   /** 所屬計畫（公文主旨「檢送「{projectName}」…」使用） */
   projectName: z.string().trim().max(200).optional().transform((v) => v || VIDEO_PROJECT_NAME),
-  schoolName: z.string().trim().min(1, "請輸入學校名稱").max(100),
+  schoolName: z.string().trim().max(100).optional().transform((v) => v ?? ""),
   district: z.string().trim().max(20).optional().transform((v) => v || null),
   responsibleUserId: z.string().trim().min(1, "請選擇負責人"),
-  dueDate: z.string().trim().refine(isISODate, "請選擇期限"),
+  /** 機關通知日 */
+  noticeDate: optionalDate,
+  /** 成果影片：機關審核同意通知日（15 秒版本） */
+  approvedDate: optionalDate,
   notes: z.string().trim().max(2000).optional().transform((v) => v || null),
 });
-export type VideoInput = z.input<typeof videoSchema>;
+export type VideoInput = z.input<typeof schema>;
 
-function parse(input: VideoInput) {
-  const p = videoSchema.safeParse(input);
+function parse(input: VideoInput, kind: StandaloneKind) {
+  const p = schema.safeParse(input);
   if (!p.success) throw new ValidationError(p.error.issues[0]?.message ?? "資料格式錯誤", p.error.flatten().fieldErrors as Record<string, string[]>);
+  if (!p.data.schoolName) {
+    if (STANDALONE_KINDS[kind].schoolRequired) throw new ValidationError("請輸入學校名稱", { schoolName: ["請輸入學校名稱"] });
+    p.data.schoolName = WHOLE_PROJECT;
+  }
+  if (kind !== "RESULT_VIDEO") p.data.approvedDate = null;
   return p.data;
+}
+
+function toDbFields(p: ReturnType<typeof parse>) {
+  return {
+    projectName: p.projectName,
+    schoolName: p.schoolName,
+    district: p.district,
+    responsibleUserId: p.responsibleUserId,
+    notificationDate: p.noticeDate ? isoToDbDate(p.noticeDate) : null,
+    resultVideoApprovedDate: p.approvedDate ? isoToDbDate(p.approvedDate) : null,
+    notes: p.notes,
+  };
 }
 
 async function assertActiveUser(userId: string) {
@@ -36,67 +66,67 @@ async function assertActiveUser(userId: string) {
   if (!u?.isActive) throw new ValidationError("負責人帳號不存在或已停用", { responsibleUserId: ["請重新選擇負責人"] });
 }
 
-async function nextVideoCode(): Promise<string> {
-  const rows = await prisma.schoolCase.findMany({ where: { projectCode: { startsWith: "VIDEO-" } }, select: { projectCode: true } });
-  const max = Math.max(0, ...rows.map((r) => Number(/^VIDEO-(\d+)/.exec(r.projectCode)?.[1] ?? 0)));
-  return `VIDEO-${String(max + 1).padStart(3, "0")}`;
+async function nextCode(prefix: string): Promise<string> {
+  const rows = await prisma.schoolCase.findMany({ where: { projectCode: { startsWith: prefix } }, select: { projectCode: true } });
+  const max = Math.max(0, ...rows.map((r) => Number(r.projectCode.slice(prefix.length).match(/^\d+/)?.[0] ?? 0)));
+  return `${prefix}${String(max + 1).padStart(3, "0")}`;
 }
 
-export async function listVideos(user: AuthUser) {
+const mainTypes = (kind: StandaloneKind) => STANDALONE_KINDS[kind].stages.map((s) => s.taskType);
+
+export async function listVideos(user: AuthUser, kind: StandaloneKind = "RESULT_VIDEO") {
+  const k = STANDALONE_KINDS[kind];
+  const admin = user.role === "ADMIN";
+  const types = k.stages.flatMap((s) => (admin ? [s.taskType, s.draftTaskType] : [s.taskType]));
   const rows = await prisma.schoolCase.findMany({
-    where: { AND: [caseAccessWhere(user), { caseType: "RESULT_VIDEO" }] },
+    where: { AND: [caseAccessWhere(user), { caseType: kind }] },
     include: {
       responsibleUser: { select: { id: true, name: true } },
       tasks: {
-        where: { taskType: { in: user.role === "ADMIN" ? ["RESULT_VIDEO", "RESULT_VIDEO_DRAFT"] : ["RESULT_VIDEO"] } },
+        where: { taskType: { in: types } },
         select: { id: true, taskType: true, status: true, calculatedDueDate: true, overrideDueDate: true, actualCompletedAt: true },
       },
-      documents: { select: { id: true, status: true }, orderBy: { createdAt: "desc" } },
+      documents: { select: { id: true, status: true, documentType: true }, orderBy: { createdAt: "desc" } },
     },
+    orderBy: [{ notificationDate: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }],
   });
-  return rows
-    .map((r) => ({ ...r, task: r.tasks.find((t) => t.taskType === "RESULT_VIDEO") ?? null, draft: r.tasks.find((t) => t.taskType === "RESULT_VIDEO_DRAFT") ?? null }))
-    .sort((a, b) => (a.resultVideoDueDate?.getTime() ?? Infinity) - (b.resultVideoDueDate?.getTime() ?? Infinity));
+  return rows.map((r) => ({
+    ...r,
+    stages: k.stages.map((s) => ({
+      ...s,
+      task: r.tasks.find((t) => t.taskType === s.taskType) ?? null,
+      draft: r.tasks.find((t) => t.taskType === s.draftTaskType) ?? null,
+      document: r.documents.find((d) => d.documentType === s.documentType) ?? null,
+    })),
+  }));
 }
 
-export async function createVideo(user: AuthUser, input: VideoInput) {
+export async function createVideo(user: AuthUser, input: VideoInput, kind: StandaloneKind = "RESULT_VIDEO") {
   assertAdmin(user);
-  const p = parse(input);
+  const k = STANDALONE_KINDS[kind];
+  const p = parse(input, kind);
   await assertActiveUser(p.responsibleUserId);
-  const projectCode = await nextVideoCode();
+  const projectCode = await nextCode(k.codePrefix);
   return prisma.$transaction(async (tx) => {
-    const c = await tx.schoolCase.create({
-      data: {
-        caseType: "RESULT_VIDEO",
-        projectCode,
-        projectName: p.projectName,
-        schoolName: p.schoolName,
-        district: p.district,
-        responsibleUserId: p.responsibleUserId,
-        resultVideoDueDate: isoToDbDate(p.dueDate),
-        notes: p.notes,
-      },
-    });
-    await syncCaseTasks(c.id, { actorId: user.id, source: "CASE_CREATED", reason: "新增成果影片", db: tx });
-    await writeAudit({ actorId: user.id, action: "CASE_CREATE", entityType: "SchoolCase", entityId: c.id, summary: `新增成果影片 ${p.schoolName}（期限 ${p.dueDate}）` }, tx);
+    const c = await tx.schoolCase.create({ data: { caseType: kind, projectCode, ...toDbFields(p) } });
+    await syncCaseTasks(c.id, { actorId: user.id, source: "CASE_CREATED", reason: `新增${k.label}`, db: tx });
+    await writeAudit({ actorId: user.id, action: "CASE_CREATE", entityType: "SchoolCase", entityId: c.id, summary: `新增${k.label} ${p.schoolName}` }, tx);
     return c;
   });
 }
 
-export async function updateVideo(user: AuthUser, id: string, input: VideoInput & { reason?: string }) {
+export async function updateVideo(user: AuthUser, id: string, input: VideoInput & { reason?: string }, kind: StandaloneKind = "RESULT_VIDEO") {
   assertAdmin(user);
-  const p = parse(input);
-  const existing = await prisma.schoolCase.findFirst({ where: { id, caseType: "RESULT_VIDEO" } });
-  if (!existing) throw new NotFoundError("找不到此成果影片");
+  const k = STANDALONE_KINDS[kind];
+  const p = parse(input, kind);
+  const existing = await prisma.schoolCase.findFirst({ where: { id, caseType: kind } });
+  if (!existing) throw new NotFoundError(`找不到此${k.label}`);
   if (p.responsibleUserId !== existing.responsibleUserId) await assertActiveUser(p.responsibleUserId);
   return prisma.$transaction(async (tx) => {
-    const c = await tx.schoolCase.update({
-      where: { id },
-      data: { projectName: p.projectName, schoolName: p.schoolName, district: p.district, responsibleUserId: p.responsibleUserId, resultVideoDueDate: isoToDbDate(p.dueDate), notes: p.notes },
-    });
-    await syncCaseTasks(id, { actorId: user.id, source: "CASE_DATE_CHANGE", reason: input.reason?.trim() || "更新成果影片", db: tx });
-    await tx.task.updateMany({ where: { caseId: id, taskType: "RESULT_VIDEO", status: { not: "COMPLETED" } }, data: { assignedUserId: p.responsibleUserId } });
-    await writeAudit({ actorId: user.id, action: "CASE_UPDATE", entityType: "SchoolCase", entityId: id, summary: `更新成果影片 ${p.schoolName}（期限 ${p.dueDate}）` }, tx);
+    const c = await tx.schoolCase.update({ where: { id }, data: toDbFields(p) });
+    await syncCaseTasks(id, { actorId: user.id, source: "CASE_DATE_CHANGE", reason: input.reason?.trim() || `更新${k.label}`, db: tx });
+    await tx.task.updateMany({ where: { caseId: id, taskType: { in: mainTypes(kind) }, status: { not: "COMPLETED" } }, data: { assignedUserId: p.responsibleUserId } });
+    await writeAudit({ actorId: user.id, action: "CASE_UPDATE", entityType: "SchoolCase", entityId: id, summary: `更新${k.label} ${p.schoolName}` }, tx);
     return c;
   });
 }

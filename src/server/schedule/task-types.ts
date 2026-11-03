@@ -5,8 +5,12 @@ export const TASK_TYPE_LABELS: Record<TaskType, string> = {
   BEFORE_AFTER_CARDS: "提供改善前後對照圖卡",
   FINAL_REPORT_DRAFT: "完整規劃及分析報告書創稿",
   BEFORE_AFTER_CARDS_DRAFT: "改善前後對照圖卡創稿",
-  RESULT_VIDEO: "提供成果影片",
-  RESULT_VIDEO_DRAFT: "成果影片創稿",
+  RESULT_VIDEO: "提供成果影片（3 分鐘）",
+  RESULT_VIDEO_DRAFT: "成果影片（3 分鐘）創稿",
+  RESULT_VIDEO_SHORT: "提供成果影片（15 秒版本）",
+  RESULT_VIDEO_SHORT_DRAFT: "成果影片（15 秒版本）創稿",
+  RESULT_REPORT: "提供成效分析及成果報告書",
+  RESULT_REPORT_DRAFT: "成效分析及成果報告書創稿",
   PRE_REPORT_PROVIDE: "提供事前規劃報告書",
   PRE_REPORT_DRAFT: "事前規劃報告書創稿",
   PRE_REPORT_DISPATCH: "事前規劃報告書提供圖說",
@@ -37,7 +41,9 @@ export const ANCHOR_LABELS: Record<DeadlineAnchor, string> = {
   PRE_REPORT_DISPATCH: "事前規劃報告書提供圖說日",
   FINAL_REPORT_NOTICE: "機關通知提送完整報告書日",
   FINAL_REPORT_APPROVED: "機關同意備查日",
-  RESULT_VIDEO_DUE: "成果影片期限",
+  RESULT_VIDEO_DUE: "成果影片機關通知日",
+  RESULT_REPORT_DUE: "成效分析及成果報告書機關通知日",
+  RESULT_VIDEO_APPROVED: "成果影片審核同意通知日",
 };
 
 export type TaskCategory = "DRAFT" | "DISPATCH" | "EMAIL" | "UPLOAD" | "EVENT" | "REPORT" | "VIDEO";
@@ -49,6 +55,10 @@ export const TASK_CATEGORY: Record<TaskType, TaskCategory> = {
   BEFORE_AFTER_CARDS_DRAFT: "DRAFT",
   RESULT_VIDEO: "VIDEO",
   RESULT_VIDEO_DRAFT: "DRAFT",
+  RESULT_VIDEO_SHORT: "VIDEO",
+  RESULT_VIDEO_SHORT_DRAFT: "DRAFT",
+  RESULT_REPORT: "REPORT",
+  RESULT_REPORT_DRAFT: "DRAFT",
   PRE_REPORT_PROVIDE: "DISPATCH",
   PRE_REPORT_DRAFT: "DRAFT",
   PRE_REPORT_DISPATCH: "DISPATCH",
@@ -69,11 +79,13 @@ export const TASK_TYPES_BY_CATEGORY = (cat: TaskCategory): TaskType[] =>
 
 /** 工作類型對應之公文類型 */
 /** 可「產生公文」的工作：只有創稿（提供報告書／修正圖說不需公文） */
-export const TASK_DOCUMENT_TYPE: Partial<Record<TaskType, "PRE_REPORT" | "REVIEW_DRAWING" | "SITE_VISIT_DRAWING" | "RESULT_VIDEO">> = {
+export const TASK_DOCUMENT_TYPE: Partial<Record<TaskType, "PRE_REPORT" | "REVIEW_DRAWING" | "SITE_VISIT_DRAWING" | "RESULT_VIDEO" | "RESULT_VIDEO_SHORT" | "RESULT_REPORT">> = {
   PRE_REPORT_DRAFT: "PRE_REPORT",
   REVIEW_DRAWING_DRAFT: "REVIEW_DRAWING",
   SITE_VISIT_DRAWING_DRAFT: "SITE_VISIT_DRAWING",
   RESULT_VIDEO_DRAFT: "RESULT_VIDEO",
+  RESULT_REPORT_DRAFT: "RESULT_REPORT",
+  RESULT_VIDEO_SHORT_DRAFT: "RESULT_VIDEO_SHORT",
 };
 
 /** 工作類型對應之 Email 範本 */
@@ -108,6 +120,8 @@ export const COLLEAGUE_REMINDER_TASKS: TaskType[] = [
   "FINAL_REPORT_SUBMIT",
   "BEFORE_AFTER_CARDS",
   "RESULT_VIDEO",
+  "RESULT_VIDEO_SHORT",
+  "RESULT_REPORT",
 ];
 
 /** 工作依作業流程（一般期限先後）排列：創稿（通知後第 11 個工作天）→ 提供報告書（第 12 天）→ 提供圖說 → 審查 → 會勘 */
@@ -130,6 +144,10 @@ export const TASK_TIMELINE_ORDER: TaskType[] = [
   "BEFORE_AFTER_CARDS",
   "RESULT_VIDEO_DRAFT",
   "RESULT_VIDEO",
+  "RESULT_VIDEO_SHORT_DRAFT",
+  "RESULT_VIDEO_SHORT",
+  "RESULT_REPORT_DRAFT",
+  "RESULT_REPORT",
 ];
 
 /** 已移除之工項（不再建立，既有資料不顯示） */
@@ -143,6 +161,8 @@ export const ADMIN_ONLY_TASKS: TaskType[] = [
   "FINAL_REPORT_DRAFT",
   "BEFORE_AFTER_CARDS_DRAFT",
   "RESULT_VIDEO_DRAFT",
+  "RESULT_VIDEO_SHORT_DRAFT",
+  "RESULT_REPORT_DRAFT",
 ];
 
 export const OPEN_TASK_STATUSES: TaskStatus[] = ["NOT_STARTED", "IN_PROGRESS", "ON_HOLD"];

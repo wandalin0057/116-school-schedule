@@ -33,6 +33,21 @@ async function seedRules() {
 
 /** 預設規則調整：仍為舊版預設值（未被管理員修改）者更新為新版，回傳是否有更新 */
 async function upgradeRules(): Promise<boolean> {
+  // 成果影片：由手動期限改為機關通知日推算（3 分鐘：第 20 個工作天；創稿：第 19 個工作天）
+  let videoUpgraded = false;
+  for (const [type, oldOffset] of [["RESULT_VIDEO", 0], ["RESULT_VIDEO_DRAFT", -1]] as const) {
+    const def = DEFAULT_DEADLINE_RULES.find((r) => r.taskType === type)!;
+    const r = await prisma.deadlineRule.updateMany({
+      where: { taskType: type, anchor: "RESULT_VIDEO_DUE", offsetBusinessDays: oldOffset },
+      data: { title: def.title, description: def.description, offsetBusinessDays: def.offsetBusinessDays },
+    });
+    if (r.count) {
+      await prisma.task.updateMany({ where: { taskType: type }, data: { title: def.title, description: def.description } });
+      videoUpgraded = true;
+    }
+  }
+  if (videoUpgraded) console.log("✓ 成果影片改為依機關通知日推算期限");
+
   // 移除「提供圖說」工項後，創稿改以機關通知日推算（第 11 個工作天）
   const draft = DEFAULT_DEADLINE_RULES.find((r) => r.taskType === "PRE_REPORT_DRAFT")!;
   const reanchored = await prisma.deadlineRule.updateMany({
@@ -50,7 +65,7 @@ async function upgradeRules(): Promise<boolean> {
     where: { taskType: "PRE_REPORT_PROVIDE", anchor: "PRE_REPORT_DISPATCH", offsetBusinessDays: -2 },
     data: { anchor: next.anchor, offsetBusinessDays: next.offsetBusinessDays, description: next.description },
   });
-  if (!r.count) return reanchored.count > 0;
+  if (!r.count) return reanchored.count > 0 || videoUpgraded;
   await prisma.task.updateMany({
     where: { taskType: "PRE_REPORT_PROVIDE", description: "事前規劃報告書提供圖說前第 2 個工作天，由負責同事提供報告書" },
     data: { description: next.description },
@@ -231,6 +246,9 @@ async function seedDemo() {
 }
 
 async function main() {
+  // 舊資料轉換需在重新計算期限之前
+  await moveVideosOutOfSchoolCases();
+  await lockLegacyVideoDueDates();
   await seedRules();
   await seedTemplates();
   await seedCalendars();
@@ -240,7 +258,27 @@ async function main() {
   const { assignDraftTasksToPm } = await import("../src/server/schedule/task-sync");
   const n = await assignDraftTasksToPm();
   if (n) console.log(`✓ ${n} 項創稿工作改由專案經理負責`);
-  await moveVideosOutOfSchoolCases();
+}
+
+/**
+ * 舊版成果影片為手動填寫期限（尚無機關通知日）：改為人工鎖定原期限，避免改以通知日推算後期限被清除。
+ * 之後在成果影片頁補填機關通知日，再於工作上解除鎖定即可改用系統推算。
+ */
+async function lockLegacyVideoDueDates() {
+  const legacy = await prisma.schoolCase.findMany({
+    where: { caseType: "RESULT_VIDEO", resultVideoDueDate: { not: null } },
+    include: { tasks: { where: { taskType: { in: ["RESULT_VIDEO", "RESULT_VIDEO_DRAFT"] } } } },
+  });
+  for (const c of legacy) {
+    await prisma.$transaction(async (tx) => {
+      for (const t of c.tasks) {
+        const due = t.taskType === "RESULT_VIDEO" ? c.resultVideoDueDate : (t.overrideDueDate ?? t.calculatedDueDate);
+        if (!t.overrideDueDate && due) await tx.task.update({ where: { id: t.id }, data: { overrideDueDate: due, overrideReason: "原手動填寫之成果影片期限" } });
+      }
+      await tx.schoolCase.update({ where: { id: c.id }, data: { resultVideoDueDate: null } });
+    });
+  }
+  if (legacy.length) console.log(`✓ ${legacy.length} 筆成果影片保留原期限（已鎖定），可補填機關通知日`);
 }
 
 /** 先前於學校案件填寫之「成果影片期限」改為獨立的成果影片項目（工作與完成狀態一併移過去） */

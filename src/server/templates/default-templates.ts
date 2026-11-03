@@ -8,14 +8,16 @@ export interface TemplateDef {
   body: string;
 }
 
-export const DOCUMENT_TEMPLATE_TYPES = ["PRE_REPORT", "REVIEW_DRAWING", "SITE_VISIT_DRAWING", "RESULT_VIDEO"] as const;
+export const DOCUMENT_TEMPLATE_TYPES = ["PRE_REPORT", "REVIEW_DRAWING", "SITE_VISIT_DRAWING", "RESULT_VIDEO", "RESULT_VIDEO_SHORT", "RESULT_REPORT"] as const;
 export const EMAIL_TEMPLATE_TYPES = ["REVIEW_SLIDES_EMAIL", "REVIEW_MINUTES_EMAIL", "SITE_VISIT_MINUTES_EMAIL"] as const;
 
 export const TEMPLATE_TYPE_LABELS: Record<TemplateType, string> = {
   PRE_REPORT: "事前規劃及分析報告書",
   REVIEW_DRAWING: "審查會議後修正圖說",
   SITE_VISIT_DRAWING: "會勘後修正圖說",
-  RESULT_VIDEO: "成果影片",
+  RESULT_VIDEO: "成果影片（3 分鐘）",
+  RESULT_VIDEO_SHORT: "成果影片（15 秒版本）",
+  RESULT_REPORT: "成效分析及成果報告書",
   REVIEW_SLIDES_EMAIL: "審查會議前寄送簡報",
   REVIEW_MINUTES_EMAIL: "審查會議後寄送會議紀錄",
   SITE_VISIT_MINUTES_EMAIL: "會勘後寄送會勘紀錄",
@@ -58,6 +60,26 @@ export const DEFAULT_DOCUMENT_TEMPLATES: TemplateDef[] = [
     category: "DOCUMENT",
     name: "成果影片",
     subject: "檢送「{projectName}」{schoolName}成果影片，附件詳如說明二，請查照。",
+    body: [
+      "一、依據本案徵求服務建議書第肆點規定辦理。",
+      "二、附件網址：{attachmentUrl}，下載密碼：{attachmentPassword}（請於{downloadDeadlineROC}前下載）。",
+    ].join("\n"),
+  },
+  {
+    type: "RESULT_VIDEO_SHORT",
+    category: "DOCUMENT",
+    name: "成果影片（15 秒版本）",
+    subject: "檢送「{projectName}」{schoolName}成果影片（15 秒版本），附件詳如說明二，請查照。",
+    body: [
+      "一、依據本案徵求服務建議書第肆點規定辦理。",
+      "二、附件網址：{attachmentUrl}，下載密碼：{attachmentPassword}（請於{downloadDeadlineROC}前下載）。",
+    ].join("\n"),
+  },
+  {
+    type: "RESULT_REPORT",
+    category: "DOCUMENT",
+    name: "成效分析及成果報告書",
+    subject: "檢送「{projectName}」{schoolName}成效分析及成果報告書，附件詳如說明二，請查照。",
     body: [
       "一、依據本案徵求服務建議書第肆點規定辦理。",
       "二、附件網址：{attachmentUrl}，下載密碼：{attachmentPassword}（請於{downloadDeadlineROC}前下載）。",

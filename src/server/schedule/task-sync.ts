@@ -45,12 +45,22 @@ export function anchorsFromCase(c: {
   siteVisitDateTime: Date | null;
   finalReportNoticeDate?: Date | null;
   finalReportApprovedDate?: Date | null;
-  resultVideoDueDate?: Date | null;
+  resultVideoApprovedDate?: Date | null;
   caseType?: CaseType;
 }): ScheduleAnchors {
-  // 成果影片項目只有「提供成果影片」一項工作；學校案件不產生成果影片工作
+  // 成果影片項目只產生影片與其創稿；學校案件不產生這些工作
+  // 獨立項目之「機關通知日」存於 notificationDate，但以各自的基準推算，不產生學校案件的工作
   if (c.caseType === "RESULT_VIDEO") {
-    return { notificationDate: null, reviewMeetingDate: null, siteVisitDate: null, resultVideoDueDate: dbDateToISOOrNull(c.resultVideoDueDate) };
+    return {
+      notificationDate: null,
+      reviewMeetingDate: null,
+      siteVisitDate: null,
+      resultVideoDueDate: dbDateToISOOrNull(c.notificationDate),
+      resultVideoApprovedDate: dbDateToISOOrNull(c.resultVideoApprovedDate),
+    };
+  }
+  if (c.caseType === "RESULT_REPORT") {
+    return { notificationDate: null, reviewMeetingDate: null, siteVisitDate: null, resultReportDueDate: dbDateToISOOrNull(c.notificationDate) };
   }
   return {
     notificationDate: dbDateToISOOrNull(c.notificationDate),
@@ -58,7 +68,6 @@ export function anchorsFromCase(c: {
     siteVisitDate: c.siteVisitDateTime ? taipeiDateOf(c.siteVisitDateTime) : null,
     finalReportNoticeDate: dbDateToISOOrNull(c.finalReportNoticeDate),
     finalReportApprovedDate: dbDateToISOOrNull(c.finalReportApprovedDate),
-    resultVideoDueDate: null,
   };
 }
 

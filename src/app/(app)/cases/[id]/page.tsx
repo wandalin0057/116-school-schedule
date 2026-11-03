@@ -1,6 +1,7 @@
 import { CalendarClock, ExternalLink, Pencil } from "lucide-react";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { STANDALONE_KINDS } from "@/server/videos/standalone-kinds";
 import { CreateDocumentButtons, CreateEmailButtons, EventHeldButton, MemberManager } from "@/components/cases/case-detail-client";
 import { DeleteCaseButton } from "@/components/cases/delete-case-button";
 import { PageHeader } from "@/components/common/page-header";
@@ -42,7 +43,7 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
   if (!(await canAccessCase(user, id, "view"))) notFound();
   const [c, bds, users, canEdit] = await Promise.all([getCaseDetail(user, id), loadBusinessDayService(), listUsers(), canAccessCase(user, id, "edit")]);
   // 成果影片於獨立頁面管理
-  if (c.caseType === "RESULT_VIDEO") redirect("/videos");
+  if (c.caseType !== "SCHOOL_ZONE") redirect(STANDALONE_KINDS[c.caseType].path);
   const today = taipeiToday();
   const order: string[] = TASK_TIMELINE_ORDER;
   // 創稿工作僅管理員可見

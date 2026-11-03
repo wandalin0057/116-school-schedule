@@ -89,6 +89,8 @@ export const DOCUMENT_TYPE_LABELS = {
   REVIEW_DRAWING: "審查會議後修正圖說",
   SITE_VISIT_DRAWING: "會勘後修正圖說",
   RESULT_VIDEO: "成果影片",
+  RESULT_VIDEO_SHORT: "成果影片（15 秒版本）",
+  RESULT_REPORT: "成效分析及成果報告書",
 } as const;
 
 export const DOCUMENT_STATUS_LABELS = {

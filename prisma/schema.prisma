@@ -86,6 +86,7 @@ model Session {
 enum CaseType {
   SCHOOL_ZONE
   RESULT_VIDEO
+  RESULT_REPORT // 成效分析及成果報告書
 }
 
 enum CaseStatus {
@@ -118,7 +119,10 @@ model SchoolCase {
   finalReportNoticeDate   DateTime?  @db.Date
   // 機關同意備查完整之規劃及分析報告書日
   finalReportApprovedDate DateTime?  @db.Date
+  // 舊版：成果影片手動期限（已改由機關通知日推算，保留供舊資料轉換）
   resultVideoDueDate      DateTime?  @db.Date
+  // 成果影片：機關審核同意（通知提供 15 秒版本）之日
+  resultVideoApprovedDate DateTime?  @db.Date
   status                  CaseStatus @default(ACTIVE)
   notes                   String?
   createdAt               DateTime   @default(now()) @db.Timestamptz
@@ -192,6 +196,10 @@ enum TaskType {
   BEFORE_AFTER_CARDS_DRAFT
   RESULT_VIDEO
   RESULT_VIDEO_DRAFT
+  RESULT_REPORT
+  RESULT_REPORT_DRAFT
+  RESULT_VIDEO_SHORT
+  RESULT_VIDEO_SHORT_DRAFT
 }
 
 model Task {
@@ -250,7 +258,9 @@ enum DeadlineAnchor {
   PRE_REPORT_DISPATCH
   FINAL_REPORT_NOTICE // 機關通知提送完整報告書日
   FINAL_REPORT_APPROVED // 機關同意備查日
-  RESULT_VIDEO_DUE // 成果影片期限（僅部分學校）
+  RESULT_VIDEO_DUE // 成果影片：機關通知日
+  RESULT_REPORT_DUE // 成效分析及成果報告書：機關通知日
+  RESULT_VIDEO_APPROVED // 成果影片：機關審核同意通知日
 }
 
 model DeadlineRule {
@@ -333,6 +343,8 @@ enum TemplateType {
   REVIEW_DRAWING // 審查會議後修正圖說
   SITE_VISIT_DRAWING // 會勘後修正圖說
   RESULT_VIDEO // 成果影片
+  RESULT_REPORT // 成效分析及成果報告書
+  RESULT_VIDEO_SHORT // 成果影片（15 秒版本）
   // Email
   REVIEW_SLIDES_EMAIL // 審查會議前寄送簡報
   REVIEW_MINUTES_EMAIL // 審查會議後寄送會議紀錄
@@ -373,6 +385,8 @@ enum DocumentType {
   REVIEW_DRAWING
   SITE_VISIT_DRAWING
   RESULT_VIDEO
+  RESULT_REPORT
+  RESULT_VIDEO_SHORT
 }
 
 model OfficialDocument {

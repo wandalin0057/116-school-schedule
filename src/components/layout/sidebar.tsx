@@ -1,5 +1,5 @@
 "use client";
-import { Bell, CalendarDays, Clapperboard, ClipboardList, FileText, LayoutDashboard, LogOut, Mail, Menu, School, Settings, X } from "lucide-react";
+import { Bell, BookOpenCheck, CalendarDays, Clapperboard, ClipboardList, FileText, LayoutDashboard, LogOut, Mail, Menu, School, Settings, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -12,6 +12,7 @@ const NAV = [
   { href: "/cases", label: "學校案件", icon: School },
   { href: "/tasks", label: "工作待辦", icon: ClipboardList },
   { href: "/videos", label: "成果影片", icon: Clapperboard },
+  { href: "/reports", label: "成效分析報告書", icon: BookOpenCheck },
   { href: "/calendar", label: "行事曆", icon: CalendarDays },
   { href: "/documents", label: "公文管理", icon: FileText },
   { href: "/emails", label: "Email 草稿", icon: Mail },

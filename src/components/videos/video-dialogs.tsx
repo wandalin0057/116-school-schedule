@@ -8,12 +8,15 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input, Select, Textarea } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { TAIPEI_DISTRICTS } from "@/server/cases/case-schema";
+import { STANDALONE_KINDS, type StandaloneKind } from "@/server/videos/standalone-kinds";
 
-export type VideoFormValues = { projectName: string; schoolName: string; district: string; responsibleUserId: string; dueDate: string; notes: string };
+export type VideoFormValues = { projectName: string; schoolName: string; district: string; responsibleUserId: string; noticeDate: string; approvedDate: string; notes: string };
 type UserOption = { id: string; name: string; email: string };
 
-export function VideoDialog({ users, projects, video }: { users: UserOption[]; projects: string[]; video?: { id: string } & VideoFormValues }) {
-  const empty: VideoFormValues = { projectName: projects[0] ?? "", schoolName: "", district: "", responsibleUserId: "", dueDate: "", notes: "" };
+export function VideoDialog({ kind = "RESULT_VIDEO", users, projects, video }: { kind?: StandaloneKind; users: UserOption[]; projects: string[]; video?: { id: string } & VideoFormValues }) {
+  const k = STANDALONE_KINDS[kind];
+  const noticeHint = kind === "RESULT_VIDEO" ? "通知次日起 20 個工作天內提供 3 分鐘成果影片；尚未通知可先留空。" : "通知次日起 18 個工作天內提供；尚未通知可先留空。";
+  const empty: VideoFormValues = { projectName: projects[0] ?? "", schoolName: "", district: "", responsibleUserId: "", noticeDate: "", approvedDate: "", notes: "" };
   const [open, setOpen] = useState(false);
   const [v, setV] = useState<VideoFormValues>(video ?? empty);
   const { run, pending } = useAction();
@@ -36,21 +39,21 @@ export function VideoDialog({ users, projects, video }: { users: UserOption[]; p
         ) : (
           <Button>
             <Plus />
-            新增成果影片
+            新增{k.label}
           </Button>
         )}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{video ? "編輯成果影片" : "新增成果影片"}</DialogTitle>
-          <DialogDescription>成果影片獨立於學校案件。期限前一個工作天會建立「成果影片創稿」（發文，只提醒您）；期限前會寄每日提醒給負責人。</DialogDescription>
+          <DialogTitle>{video ? `編輯${k.label}` : `新增${k.label}`}</DialogTitle>
+          <DialogDescription>{k.label}獨立於學校案件。填寫機關通知日後，系統自動推算繳交期限與前一個工作天的創稿（發文，只提醒您）。</DialogDescription>
         </DialogHeader>
         <form
           id={`video-form-${id}`}
           className="grid gap-3"
           onSubmit={(e) => {
             e.preventDefault();
-            void run(() => (video ? updateVideoAction(video.id, v) : createVideoAction(v)), { onSuccess: () => setOpen(false) });
+            void run(() => (video ? updateVideoAction(video.id, v, kind) : createVideoAction(v, kind)), { onSuccess: () => setOpen(false) });
           }}
         >
           <div className="space-y-1.5">
@@ -65,7 +68,7 @@ export function VideoDialog({ users, projects, video }: { users: UserOption[]; p
           </div>
           <div className="space-y-1.5">
             <Label htmlFor={`vd-school-${id}`}>學校名稱</Label>
-            <Input id={`vd-school-${id}`} value={v.schoolName} onChange={set("schoolName")} required placeholder="例如：臺北市大安區仁愛國民小學" />
+            <Input id={`vd-school-${id}`} value={v.schoolName} onChange={set("schoolName")} required={kind === "RESULT_VIDEO"} placeholder={k.schoolHint} />
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
@@ -79,11 +82,19 @@ export function VideoDialog({ users, projects, video }: { users: UserOption[]; p
                 ))}
               </Select>
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor={`vd-due-${id}`}>期限</Label>
-              <Input id={`vd-due-${id}`} type="date" value={v.dueDate} onChange={set("dueDate")} required />
-            </div>
           </div>
+          <div className="space-y-1.5">
+            <Label htmlFor={`vd-notice-${id}`}>機關通知日</Label>
+            <Input id={`vd-notice-${id}`} type="date" value={v.noticeDate} onChange={set("noticeDate")} />
+            <p className="text-xs text-muted-foreground">{noticeHint}</p>
+          </div>
+          {kind === "RESULT_VIDEO" && (
+            <div className="space-y-1.5">
+              <Label htmlFor={`vd-approved-${id}`}>機關審核同意通知日（15 秒版本）</Label>
+              <Input id={`vd-approved-${id}`} type="date" value={v.approvedDate} onChange={set("approvedDate")} />
+              <p className="text-xs text-muted-foreground">3 分鐘影片經機關審核同意後填寫；通知次日起 10 個工作天內提供 15 秒版本。</p>
+            </div>
+          )}
           <div className="space-y-1.5">
             <Label htmlFor={`vd-user-${id}`}>負責人</Label>
             <Select id={`vd-user-${id}`} value={v.responsibleUserId} onChange={set("responsibleUserId")} required>
@@ -114,7 +125,8 @@ export function VideoDialog({ users, projects, video }: { users: UserOption[]; p
   );
 }
 
-export function DeleteVideoButton({ id, label }: { id: string; label: string }) {
+export function DeleteVideoButton({ id, label, kind = "RESULT_VIDEO" }: { id: string; label: string; kind?: StandaloneKind }) {
+  const k = STANDALONE_KINDS[kind];
   const [open, setOpen] = useState(false);
   const { run, pending } = useAction();
   return (
@@ -127,14 +139,14 @@ export function DeleteVideoButton({ id, label }: { id: string; label: string }) 
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>刪除成果影片</DialogTitle>
-          <DialogDescription>確定刪除「{label}」？此項目的工作、提醒與成果影片公文會一併刪除，無法復原。</DialogDescription>
+          <DialogTitle>刪除{k.label}</DialogTitle>
+          <DialogDescription>確定刪除「{label}」？此項目的工作、提醒與公文會一併刪除，無法復原。</DialogDescription>
         </DialogHeader>
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>
             取消
           </Button>
-          <Button variant="destructive" disabled={pending} onClick={() => run(() => deleteVideoAction(id), { onSuccess: () => setOpen(false) })}>
+          <Button variant="destructive" disabled={pending} onClick={() => run(() => deleteVideoAction(id, kind), { onSuccess: () => setOpen(false) })}>
             {pending && <Loader2 className="animate-spin" />}
             刪除
           </Button>

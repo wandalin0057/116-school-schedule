@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { STANDALONE_KINDS } from "@/server/videos/standalone-kinds";
 import { CaseForm } from "@/components/cases/case-form";
 import { caseToFormValues } from "@/components/cases/case-form-values";
 import { PageHeader } from "@/components/common/page-header";
@@ -19,7 +20,7 @@ export default async function EditCasePage({ params }: { params: Promise<{ id: s
     listUsers(),
     listProjectNames(),
   ]);
-  if (c.caseType === "RESULT_VIDEO") redirect("/videos");
+  if (c.caseType !== "SCHOOL_ZONE") redirect(STANDALONE_KINDS[c.caseType].path);
   return (
     <>
       <PageHeader title={`編輯案件：${c.schoolName}`} description={c.projectCode} />

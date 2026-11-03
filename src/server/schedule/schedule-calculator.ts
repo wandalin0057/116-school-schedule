@@ -18,6 +18,8 @@ export interface ScheduleAnchors {
   /** 機關同意備查日 */
   finalReportApprovedDate?: ISODate | null;
   resultVideoDueDate?: ISODate | null;
+  resultReportDueDate?: ISODate | null;
+  resultVideoApprovedDate?: ISODate | null;
 }
 
 export interface ComputedDeadline {
@@ -63,6 +65,10 @@ export function calculateSchedule(
         return anchors.finalReportApprovedDate ?? null;
       case "RESULT_VIDEO_DUE":
         return anchors.resultVideoDueDate ?? null;
+      case "RESULT_REPORT_DUE":
+        return anchors.resultReportDueDate ?? null;
+      case "RESULT_VIDEO_APPROVED":
+        return anchors.resultVideoApprovedDate ?? null;
       default:
         return null;
     }
