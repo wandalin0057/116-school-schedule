@@ -8,6 +8,7 @@ import { ForbiddenError, NotFoundError, ValidationError } from "@/server/errors"
 import { orderBy } from "@/server/query-utils";
 import type { ScheduleChange } from "@/server/schedule/schedule-calculator";
 import { computeCaseScheduleChanges, syncCaseTasks } from "@/server/schedule/task-sync";
+import { syncCardForSchoolCase } from "@/server/videos/video-service";
 import { randomToken } from "@/lib/crypto";
 import { hashPassword } from "@/server/auth/password";
 import { getDefaultPasswordHash } from "@/server/users/default-password";
@@ -142,6 +143,7 @@ export async function createCase(user: AuthUser, input: CaseInput, meta: { ipAdd
       }
       await syncEventRecords(tx, created.id, user.id, null, data, null);
       const changes = await syncCaseTasks(created.id, { actorId: user.id, source: "CASE_CREATED", reason: "建立案件", db: tx });
+      await syncCardForSchoolCase(tx, created, user.id);
       await writeAudit(
         { actorId: user.id, action: "CASE_CREATE", entityType: "SchoolCase", entityId: created.id, summary: `新增案件 ${created.projectCode} ${created.schoolName}`, ipAddress: meta.ipAddress },
         tx,
@@ -162,7 +164,8 @@ export async function previewCaseUpdate(user: AuthUser, caseId: string, input: C
     reviewMeetingDate: p.reviewMeetingDateTime ? taipeiDateOf(parseTaipeiDateTime(p.reviewMeetingDateTime)) : null,
     siteVisitDate: p.siteVisitDateTime ? taipeiDateOf(parseTaipeiDateTime(p.siteVisitDateTime)) : null,
     finalReportNoticeDate: p.finalReportNoticeDate as ISODate | null,
-    finalReportApprovedDate: p.finalReportApprovedDate as ISODate | null,
+    // 同意備查日只用於建立獨立的圖卡項目，不影響學校案件工作
+    finalReportApprovedDate: null,
   };
   return computeCaseScheduleChanges(caseId, anchors);
 }
@@ -218,6 +221,7 @@ export async function updateCase(user: AuthUser, caseId: string, input: CaseInpu
         reason: p.dateChangeReason ?? (datesChanged ? "案件日期異動" : "案件資料更新"),
         db: tx,
       });
+      await syncCardForSchoolCase(tx, updated, user.id);
       if (Object.keys(fieldDiff).length) {
         await writeAudit(
           {

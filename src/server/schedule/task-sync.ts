@@ -62,12 +62,17 @@ export function anchorsFromCase(c: {
   if (c.caseType === "RESULT_REPORT") {
     return { notificationDate: null, reviewMeetingDate: null, siteVisitDate: null, resultReportDueDate: dbDateToISOOrNull(c.notificationDate) };
   }
+  // 圖卡：依據日（同意備查日或機關指定通知日）存於 notificationDate，皆為次日起 15 個工作天
+  if (c.caseType === "BEFORE_AFTER_CARDS") {
+    return { notificationDate: null, reviewMeetingDate: null, siteVisitDate: null, finalReportApprovedDate: dbDateToISOOrNull(c.notificationDate) };
+  }
   return {
     notificationDate: dbDateToISOOrNull(c.notificationDate),
     reviewMeetingDate: c.reviewMeetingDateTime ? taipeiDateOf(c.reviewMeetingDateTime) : null,
     siteVisitDate: c.siteVisitDateTime ? taipeiDateOf(c.siteVisitDateTime) : null,
     finalReportNoticeDate: dbDateToISOOrNull(c.finalReportNoticeDate),
-    finalReportApprovedDate: dbDateToISOOrNull(c.finalReportApprovedDate),
+    // 學校案件的同意備查日只用於建立該校的獨立圖卡項目，不在學校案件產生圖卡工作
+    finalReportApprovedDate: null,
   };
 }
 

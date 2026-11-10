@@ -249,6 +249,7 @@ async function main() {
   // 舊資料轉換需在重新計算期限之前
   await moveVideosOutOfSchoolCases();
   await lockLegacyVideoDueDates();
+  await moveCardsOutOfSchoolCases();
   await seedRules();
   await seedTemplates();
   await seedCalendars();
@@ -258,6 +259,51 @@ async function main() {
   const { assignDraftTasksToPm } = await import("../src/server/schedule/task-sync");
   const n = await assignDraftTasksToPm();
   if (n) console.log(`✓ ${n} 項創稿工作改由專案經理負責`);
+}
+
+/** 學校案件中的改善前後對照圖卡工作移至獨立的圖卡項目（保留完成狀態、鎖定期限與異動紀錄） */
+async function moveCardsOutOfSchoolCases() {
+  const cardTypes = ["BEFORE_AFTER_CARDS", "BEFORE_AFTER_CARDS_DRAFT"] as const;
+  const legacy = await prisma.schoolCase.findMany({
+    where: { caseType: "SCHOOL_ZONE", OR: [{ finalReportApprovedDate: { not: null } }, { tasks: { some: { taskType: { in: [...cardTypes] } } } }] },
+    include: { tasks: { where: { taskType: { in: [...cardTypes] } } } },
+  });
+  const pending = legacy.filter((c) => c.tasks.length > 0);
+  const missingCards = [];
+  for (const c of legacy) {
+    if (!c.finalReportApprovedDate) continue;
+    if (!(await prisma.schoolCase.findUnique({ where: { projectCode: `CARD-${c.projectCode}` }, select: { id: true } }))) missingCards.push(c);
+  }
+  if (!pending.length && !missingCards.length) return;
+  const { cardCodeFor } = await import("../src/server/videos/video-service");
+  const { syncCaseTasks } = await import("../src/server/schedule/task-sync");
+  for (const c of legacy) {
+    await prisma.$transaction(async (tx) => {
+      let card = await tx.schoolCase.findUnique({ where: { projectCode: cardCodeFor(c.projectCode) } });
+      if (!card && c.finalReportApprovedDate) {
+        // 先建立項目並移入既有工作，再依同意備查日同步（既有工作保留狀態）
+        card = await tx.schoolCase.create({
+          data: {
+            caseType: "BEFORE_AFTER_CARDS",
+            cardSource: "PLANNED",
+            projectCode: cardCodeFor(c.projectCode),
+            projectName: c.projectName,
+            schoolName: c.schoolName,
+            district: c.district,
+            responsibleUserId: c.responsibleUserId,
+            notificationDate: c.finalReportApprovedDate,
+          },
+        });
+      }
+      for (const t of c.tasks) {
+        const taken = card && (await tx.task.findUnique({ where: { caseId_taskType: { caseId: card.id, taskType: t.taskType } }, select: { id: true } }));
+        if (card && !taken) await tx.task.update({ where: { id: t.id }, data: { caseId: card.id } });
+        else if (t.status !== "COMPLETED" || taken) await tx.task.delete({ where: { id: t.id } });
+      }
+      if (card) await syncCaseTasks(card.id, { actorId: null, source: "CASE_CREATED", reason: "圖卡改為獨立項目", db: tx });
+    }, { timeout: 60_000 });
+  }
+  console.log(`✓ ${legacy.length} 所學校的改善前後對照圖卡已移至「對照圖卡」`);
 }
 
 /**

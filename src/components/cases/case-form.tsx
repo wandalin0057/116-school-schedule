@@ -286,7 +286,7 @@ export function CaseForm({
             label="機關同意備查日"
             name="finalReportApprovedDate"
             error={errors.finalReportApprovedDate}
-            hint="收到機關同意備查完整報告書之日；起 15 個工作天內提供改善前後對照圖卡"
+            hint="收到機關同意備查完整報告書之日；儲存後自動於「改善前後對照圖卡」建立該校圖卡（次日起 15 個工作天內提供）"
           >
             <Input id="finalReportApprovedDate" type="date" value={v.finalReportApprovedDate} onChange={set("finalReportApprovedDate")} />
           </Field>

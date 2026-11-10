@@ -87,6 +87,7 @@ enum CaseType {
   SCHOOL_ZONE
   RESULT_VIDEO
   RESULT_REPORT // 成效分析及成果報告書
+  BEFORE_AFTER_CARDS // 改善前後對照圖卡（本案規劃之通學區或機關另行指定之通學區）
 }
 
 enum CaseStatus {
@@ -123,6 +124,8 @@ model SchoolCase {
   resultVideoDueDate      DateTime?  @db.Date
   // 成果影片：機關審核同意（通知提供 15 秒版本）之日
   resultVideoApprovedDate DateTime?  @db.Date
+  // 改善前後對照圖卡來源：PLANNED（本案規劃，依同意備查日）／DESIGNATED（機關另行指定，依通知日）
+  cardSource              String?
   status                  CaseStatus @default(ACTIVE)
   notes                   String?
   createdAt               DateTime   @default(now()) @db.Timestamptz

@@ -168,18 +168,38 @@ describe.skipIf(!hasTestDb)("案件期程同步（資料庫）", () => {
     expect((await prisma.task.findFirstOrThrow({ where: { caseId: schoolCase.id, taskType: "PRE_REPORT_DRAFT" } })).assignedUserId).toBe(pm.id);
   });
 
-  it("填寫機關通知提送完整報告書日、同意備查日後建立對應工作", async () => {
+  it("填寫機關通知提送完整報告書日後建立提送工作；同意備查日建立該校獨立的對照圖卡項目", async () => {
+    const { listVideos, createVideo } = await import("@/server/videos/video-service");
+    const { listCases } = await import("@/server/cases/case-service");
+    const { loadBusinessDayService } = await import("@/server/business-days/calendar-repository");
+    const bds = await loadBusinessDayService();
     const u = await makeUser("pm@example.com", "ADMIN");
-    const { schoolCase } = await createCase(u, caseInput({ responsibleUserId: u.id }));
+    const eng = await makeUser("eng@example.com");
+    const { schoolCase } = await createCase(u, caseInput({ responsibleUserId: eng.id }));
     expect(await prisma.task.count({ where: { caseId: schoolCase.id, taskType: { in: ["FINAL_REPORT_SUBMIT", "BEFORE_AFTER_CARDS"] } } })).toBe(0);
-    await updateCase(u, schoolCase.id, caseInput({ responsibleUserId: u.id, finalReportNoticeDate: "2026-10-14", finalReportApprovedDate: "2026-11-02" }));
+    await updateCase(u, schoolCase.id, caseInput({ responsibleUserId: eng.id, finalReportNoticeDate: "2026-10-14", finalReportApprovedDate: "2026-11-02" }));
     expect((await dueOf(schoolCase.id, "FINAL_REPORT_SUBMIT")).due).toBe("2026-10-21");
-    expect((await dueOf(schoolCase.id, "BEFORE_AFTER_CARDS")).due).toBeTruthy();
     expect((await dueOf(schoolCase.id, "FINAL_REPORT_DRAFT")).due).toBe("2026-10-20");
-    // 創稿只給管理員；提送報告書與對照圖卡會提醒同事
-    const tasks = await prisma.task.findMany({ where: { caseId: schoolCase.id, taskType: { in: ["FINAL_REPORT_DRAFT", "BEFORE_AFTER_CARDS_DRAFT"] } } });
-    expect(tasks).toHaveLength(2);
-    for (const t of tasks) expect(t.assignedUserId).toBe(u.id);
+    // 學校案件不再有圖卡工作
+    expect(await prisma.task.count({ where: { caseId: schoolCase.id, taskType: { in: ["BEFORE_AFTER_CARDS", "BEFORE_AFTER_CARDS_DRAFT"] } } })).toBe(0);
+    // 自動建立該校圖卡項目：同意備查日起第 15 個工作天，創稿前一個工作天（專案經理）
+    const [card] = await listVideos(u, "BEFORE_AFTER_CARDS");
+    expect(card!.schoolName).toBe(schoolCase.schoolName);
+    expect(card!.cardSource).toBe("PLANNED");
+    expect(card!.responsibleUserId).toBe(eng.id);
+    expect((await dueOf(card!.id, "BEFORE_AFTER_CARDS")).due).toBe(bds.addBusinessDays("2026-11-02", 15).date);
+    const draft = await dueOf(card!.id, "BEFORE_AFTER_CARDS_DRAFT");
+    expect(draft.due).toBe(bds.addBusinessDays("2026-11-02", 14).date);
+    expect(draft.assignedUserId).toBe(u.id);
+    // 改同意備查日 → 圖卡期限跟著更新，不重複建立
+    await updateCase(u, schoolCase.id, caseInput({ responsibleUserId: eng.id, finalReportNoticeDate: "2026-10-14", finalReportApprovedDate: "2026-11-09", dateChangeReason: "改期" }));
+    expect(await listVideos(u, "BEFORE_AFTER_CARDS")).toHaveLength(1);
+    expect((await dueOf(card!.id, "BEFORE_AFTER_CARDS")).due).toBe(bds.addBusinessDays("2026-11-09", 15).date);
+    // 機關另行指定之通學區：通知次日起 15 個工作天
+    const designated = await createVideo(u, { schoolName: "臺北市中山區長安國民小學", responsibleUserId: eng.id, noticeDate: "2026-11-10", cardSource: "DESIGNATED" }, "BEFORE_AFTER_CARDS");
+    expect(designated.cardSource).toBe("DESIGNATED");
+    expect((await dueOf(designated.id, "BEFORE_AFTER_CARDS")).due).toBe(bds.addBusinessDays("2026-11-10", 15).date);
+    expect((await listCases(u, {})).items.map((c) => c.id)).toEqual([schoolCase.id]);
   });
 
   it("成果影片與成效分析報告書為獨立項目：依機關通知日推算繳交期限與前一工作天創稿，不屬於學校案件", async () => {

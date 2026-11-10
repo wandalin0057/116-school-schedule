@@ -8,20 +8,54 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input, Select, Textarea } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { TAIPEI_DISTRICTS } from "@/server/cases/case-schema";
-import { STANDALONE_KINDS, type StandaloneKind } from "@/server/videos/standalone-kinds";
+import { CARD_SOURCES, STANDALONE_KINDS, type CardSource, type StandaloneKind } from "@/server/videos/standalone-kinds";
 
-export type VideoFormValues = { projectName: string; schoolName: string; district: string; responsibleUserId: string; noticeDate: string; approvedDate: string; notes: string };
+export type VideoFormValues = {
+  projectName: string;
+  schoolName: string;
+  district: string;
+  responsibleUserId: string;
+  noticeDate: string;
+  approvedDate: string;
+  cardSource: CardSource;
+  notes: string;
+};
 type UserOption = { id: string; name: string; email: string };
+/** 新增本案規劃之圖卡時，可由學校案件帶入資料 */
+export type SchoolOption = { id: string; projectName: string; schoolName: string; district: string; responsibleUserId: string; approvedDate: string };
 
-export function VideoDialog({ kind = "RESULT_VIDEO", users, projects, video }: { kind?: StandaloneKind; users: UserOption[]; projects: string[]; video?: { id: string } & VideoFormValues }) {
+export function VideoDialog({
+  kind = "RESULT_VIDEO",
+  users,
+  projects,
+  schools = [],
+  video,
+}: {
+  kind?: StandaloneKind;
+  users: UserOption[];
+  projects: string[];
+  schools?: SchoolOption[];
+  video?: { id: string } & VideoFormValues;
+}) {
   const k = STANDALONE_KINDS[kind];
-  const noticeHint = kind === "RESULT_VIDEO" ? "通知次日起 20 個工作天內提供 3 分鐘成果影片；尚未通知可先留空。" : "通知次日起 18 個工作天內提供；尚未通知可先留空。";
-  const empty: VideoFormValues = { projectName: projects[0] ?? "", schoolName: "", district: "", responsibleUserId: "", noticeDate: "", approvedDate: "", notes: "" };
+  const cards = kind === "BEFORE_AFTER_CARDS";
+  const empty: VideoFormValues = { projectName: projects[0] ?? "", schoolName: "", district: "", responsibleUserId: "", noticeDate: "", approvedDate: "", cardSource: "PLANNED", notes: "" };
   const [open, setOpen] = useState(false);
   const [v, setV] = useState<VideoFormValues>(video ?? empty);
   const { run, pending } = useAction();
   const set = (k: keyof VideoFormValues) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setV((s) => ({ ...s, [k]: e.target.value }));
   const id = video?.id ?? "new";
+  const noticeLabel = cards ? CARD_SOURCES[v.cardSource].dateLabel : "機關通知日";
+  const noticeHint =
+    kind === "RESULT_VIDEO"
+      ? "通知次日起 20 個工作天內提供 3 分鐘成果影片；尚未通知可先留空。"
+      : cards
+        ? `${v.cardSource === "PLANNED" ? "同意備查之日" : "通知"}次日起 15 個工作天內提供局部通學區改善前後對照圖卡及全區重點改善工項宣傳圖。`
+        : "通知次日起 18 個工作天內提供；尚未通知可先留空。";
+  const pickSchool = (schoolId: string) => {
+    const s = schools.find((x) => x.id === schoolId);
+    if (s) setV((cur) => ({ ...cur, projectName: s.projectName, schoolName: s.schoolName, district: s.district, responsibleUserId: s.responsibleUserId, noticeDate: s.approvedDate || cur.noticeDate }));
+  };
   return (
     <Dialog
       open={open}
@@ -46,7 +80,7 @@ export function VideoDialog({ kind = "RESULT_VIDEO", users, projects, video }: {
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{video ? `編輯${k.label}` : `新增${k.label}`}</DialogTitle>
-          <DialogDescription>{k.label}獨立於學校案件。填寫機關通知日後，系統自動推算繳交期限與前一個工作天的創稿（發文，只提醒您）。</DialogDescription>
+          <DialogDescription>{k.label}獨立於學校案件。填寫{noticeLabel}後，系統自動推算繳交期限與前一個工作天的創稿（只提醒您）。</DialogDescription>
         </DialogHeader>
         <form
           id={`video-form-${id}`}
@@ -56,6 +90,33 @@ export function VideoDialog({ kind = "RESULT_VIDEO", users, projects, video }: {
             void run(() => (video ? updateVideoAction(video.id, v, kind) : createVideoAction(v, kind)), { onSuccess: () => setOpen(false) });
           }}
         >
+          {cards && (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor={`vd-source-${id}`}>來源</Label>
+                <Select id={`vd-source-${id}`} value={v.cardSource} onChange={set("cardSource")}>
+                  {(Object.keys(CARD_SOURCES) as CardSource[]).map((s) => (
+                    <option key={s} value={s}>
+                      {CARD_SOURCES[s].label}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+              {!video && v.cardSource === "PLANNED" && schools.length > 0 && (
+                <div className="space-y-1.5">
+                  <Label htmlFor={`vd-pick-${id}`}>由學校案件帶入</Label>
+                  <Select id={`vd-pick-${id}`} defaultValue="" onChange={(e) => pickSchool(e.target.value)}>
+                    <option value="">（選擇學校）</option>
+                    {schools.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.schoolName}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+              )}
+            </div>
+          )}
           <div className="space-y-1.5">
             <Label htmlFor={`vd-project-${id}`}>計畫名稱</Label>
             <Select id={`vd-project-${id}`} value={v.projectName} onChange={set("projectName")}>
@@ -68,7 +129,7 @@ export function VideoDialog({ kind = "RESULT_VIDEO", users, projects, video }: {
           </div>
           <div className="space-y-1.5">
             <Label htmlFor={`vd-school-${id}`}>學校名稱</Label>
-            <Input id={`vd-school-${id}`} value={v.schoolName} onChange={set("schoolName")} required={kind === "RESULT_VIDEO"} placeholder={k.schoolHint} />
+            <Input id={`vd-school-${id}`} value={v.schoolName} onChange={set("schoolName")} required={k.schoolRequired} placeholder={k.schoolHint} />
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
@@ -84,7 +145,7 @@ export function VideoDialog({ kind = "RESULT_VIDEO", users, projects, video }: {
             </div>
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor={`vd-notice-${id}`}>機關通知日</Label>
+            <Label htmlFor={`vd-notice-${id}`}>{noticeLabel}</Label>
             <Input id={`vd-notice-${id}`} type="date" value={v.noticeDate} onChange={set("noticeDate")} />
             <p className="text-xs text-muted-foreground">{noticeHint}</p>
           </div>

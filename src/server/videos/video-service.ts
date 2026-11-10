@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { isISODate, isoToDbDate } from "@/lib/dates";
@@ -34,6 +35,8 @@ const schema = z.object({
   noticeDate: optionalDate,
   /** 成果影片：機關審核同意通知日（15 秒版本） */
   approvedDate: optionalDate,
+  /** 圖卡：本案規劃（PLANNED）或機關另行指定（DESIGNATED） */
+  cardSource: z.enum(["PLANNED", "DESIGNATED"]).optional(),
   notes: z.string().trim().max(2000).optional().transform((v) => v || null),
 });
 export type VideoInput = z.input<typeof schema>;
@@ -46,6 +49,8 @@ function parse(input: VideoInput, kind: StandaloneKind) {
     p.data.schoolName = WHOLE_PROJECT;
   }
   if (kind !== "RESULT_VIDEO") p.data.approvedDate = null;
+  if (kind === "BEFORE_AFTER_CARDS") p.data.cardSource ??= "PLANNED";
+  else p.data.cardSource = undefined;
   return p.data;
 }
 
@@ -57,6 +62,7 @@ function toDbFields(p: ReturnType<typeof parse>) {
     responsibleUserId: p.responsibleUserId,
     notificationDate: p.noticeDate ? isoToDbDate(p.noticeDate) : null,
     resultVideoApprovedDate: p.approvedDate ? isoToDbDate(p.approvedDate) : null,
+    cardSource: p.cardSource ?? null,
     notes: p.notes,
   };
 }
@@ -129,4 +135,38 @@ export async function updateVideo(user: AuthUser, id: string, input: VideoInput 
     await writeAudit({ actorId: user.id, action: "CASE_UPDATE", entityType: "SchoolCase", entityId: id, summary: `更新${k.label} ${p.schoolName}` }, tx);
     return c;
   });
+}
+
+/** 學校案件對應之圖卡項目編號（同一校只建立一筆） */
+export const cardCodeFor = (schoolProjectCode: string) => `CARD-${schoolProjectCode}`;
+
+/**
+ * 學校案件填寫「機關同意備查日」後，自動建立（或更新）該校的改善前後對照圖卡項目。
+ * 圖卡為獨立項目，學校案件本身不產生圖卡工作。
+ */
+export async function syncCardForSchoolCase(
+  tx: Prisma.TransactionClient,
+  c: { projectCode: string; projectName: string; schoolName: string; district: string | null; responsibleUserId: string; finalReportApprovedDate: Date | null },
+  actorId: string | null,
+) {
+  if (!c.finalReportApprovedDate) return null;
+  const projectCode = cardCodeFor(c.projectCode);
+  const existing = await tx.schoolCase.findUnique({ where: { projectCode } });
+  if (existing && existing.notificationDate?.getTime() === c.finalReportApprovedDate.getTime()) return existing;
+  const card = existing
+    ? await tx.schoolCase.update({ where: { id: existing.id }, data: { notificationDate: c.finalReportApprovedDate } })
+    : await tx.schoolCase.create({
+        data: {
+          caseType: "BEFORE_AFTER_CARDS",
+          cardSource: "PLANNED",
+          projectCode,
+          projectName: c.projectName,
+          schoolName: c.schoolName,
+          district: c.district,
+          responsibleUserId: c.responsibleUserId,
+          notificationDate: c.finalReportApprovedDate,
+        },
+      });
+  await syncCaseTasks(card.id, { actorId, source: existing ? "CASE_DATE_CHANGE" : "CASE_CREATED", reason: "學校案件填寫機關同意備查日", db: tx });
+  return card;
 }

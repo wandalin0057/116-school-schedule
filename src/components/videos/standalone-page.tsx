@@ -4,7 +4,8 @@ import { DueDateText, TaskStatusBadge } from "@/components/tasks/badges";
 import { TaskActions } from "@/components/tasks/task-actions";
 import { Card } from "@/components/ui/card";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
-import { DeleteVideoButton, VideoDialog } from "@/components/videos/video-dialogs";
+import { DeleteVideoButton, VideoDialog, type SchoolOption } from "@/components/videos/video-dialogs";
+import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { dbDateToISOOrNull, formatROCShort, taipeiToday, type ISODate } from "@/lib/dates";
 import type { BusinessDayService } from "@/server/business-days/business-day-service";
@@ -13,7 +14,7 @@ import { listProjectNames } from "@/server/cases/projects";
 import { TASK_TYPE_LABELS } from "@/server/schedule/task-types";
 import { computeDueInfo } from "@/server/tasks/task-utils";
 import { listUsers } from "@/server/users/user-service";
-import { STANDALONE_KINDS, type StandaloneKind } from "@/server/videos/standalone-kinds";
+import { CARD_SOURCES, STANDALONE_KINDS, type StandaloneKind } from "@/server/videos/standalone-kinds";
 import { listVideos } from "@/server/videos/video-service";
 
 type TaskLike = { id: string; status: Parameters<typeof computeDueInfo>[0]["status"]; calculatedDueDate: Date | null; overrideDueDate: Date | null };
@@ -28,12 +29,28 @@ export async function StandalonePage({ kind, description }: { kind: StandaloneKi
   const k = STANDALONE_KINDS[kind];
   const user = await requireUser();
   const admin = user.role === "ADMIN";
-  const [items, users, bds, projects] = await Promise.all([listVideos(user, kind), admin ? listUsers() : Promise.resolve([]), loadBusinessDayService(), listProjectNames()]);
+  const [items, users, bds, projects, schoolCases] = await Promise.all([
+    listVideos(user, kind),
+    admin ? listUsers() : Promise.resolve([]),
+    loadBusinessDayService(),
+    listProjectNames(),
+    admin && kind === "BEFORE_AFTER_CARDS"
+      ? prisma.schoolCase.findMany({ where: { caseType: "SCHOOL_ZONE" }, orderBy: [{ projectName: "desc" }, { projectCode: "asc" }] })
+      : Promise.resolve([]),
+  ]);
+  const schools: SchoolOption[] = schoolCases.map((c) => ({
+    id: c.id,
+    projectName: c.projectName,
+    schoolName: c.schoolName,
+    district: c.district ?? "",
+    responsibleUserId: c.responsibleUserId,
+    approvedDate: dbDateToISOOrNull(c.finalReportApprovedDate) ?? "",
+  }));
   const today = taipeiToday();
 
   return (
     <>
-      <PageHeader title={k.label} description={description} actions={admin && <VideoDialog kind={kind} users={users} projects={projects} />} />
+      <PageHeader title={k.label} description={description} actions={admin && <VideoDialog kind={kind} users={users} projects={projects} schools={schools} />} />
       <Card>
         {items.length === 0 ? (
           <EmptyState title={`尚無${k.label}`} description={admin ? `按右上角「新增${k.label}」建立。` : `目前沒有指派給您的${k.label}。`} />
@@ -45,7 +62,7 @@ export async function StandalonePage({ kind, description }: { kind: StandaloneKi
                   <TH>學校</TH>
                   <TH>負責人</TH>
                   <TH>項目</TH>
-                  <TH>機關通知日</TH>
+                  <TH>{k.dateLabel}</TH>
                   {admin && <TH>創稿發文</TH>}
                   <TH>繳交期限</TH>
                   <TH>狀態</TH>
@@ -74,6 +91,11 @@ export async function StandalonePage({ kind, description }: { kind: StandaloneKi
                         <TD className="whitespace-nowrap">{s.label}</TD>
                         <TD className="whitespace-nowrap">
                           {base ? formatROCShort(base) : <span className="text-xs text-muted-foreground">{s.dateField === "resultVideoApprovedDate" ? "審核同意後填寫" : "尚未通知"}</span>}
+                          {v.cardSource && (
+                            <span className="block text-xs text-muted-foreground">
+                              {CARD_SOURCES[v.cardSource === "DESIGNATED" ? "DESIGNATED" : "PLANNED"].label}
+                            </span>
+                          )}
                         </TD>
                         {admin && (
                           <TD className="whitespace-nowrap">
@@ -102,6 +124,7 @@ export async function StandalonePage({ kind, description }: { kind: StandaloneKi
                                 <VideoDialog
                                   kind={kind}
                                   users={users}
+                                  schools={schools}
                                   projects={projects}
                                   video={{
                                     id: v.id,
@@ -111,6 +134,7 @@ export async function StandalonePage({ kind, description }: { kind: StandaloneKi
                                     responsibleUserId: v.responsibleUserId,
                                     noticeDate: dbDateToISOOrNull(v.notificationDate) ?? "",
                                     approvedDate: dbDateToISOOrNull(v.resultVideoApprovedDate) ?? "",
+                                    cardSource: v.cardSource === "DESIGNATED" ? "DESIGNATED" : "PLANNED",
                                     notes: v.notes ?? "",
                                   }}
                                 />
